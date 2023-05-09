@@ -6,11 +6,11 @@ import com.google.gson.JsonObject
 import io.bimmergestalt.idriveconnectkit.CDS
 import io.bimmergestalt.idriveconnectkit.CDSProperty
 import io.bimmergestalt.idriveconnectkit.RHMIDimensions
-import io.bimmergestalt.idriveconnectkit.SidebarRHMIDimensions
 import me.hufman.androidautoidrive.AppSettings
 import me.hufman.androidautoidrive.BuildConfig
 import me.hufman.androidautoidrive.MutableAppSettingsObserver
 import me.hufman.androidautoidrive.carapp.FullImageConfig
+import me.hufman.androidautoidrive.carapp.*
 import me.hufman.androidautoidrive.carapp.music.MusicAppMode
 import me.hufman.androidautoidrive.cds.CDSData
 import me.hufman.androidautoidrive.cds.CDSEventHandler
@@ -25,8 +25,8 @@ class DynamicScreenCaptureConfig(val fullDimensions: RHMIDimensions,
 		const val RECENT_INTERACTION_THRESHOLD = 5000
 	}
 
-	override val maxWidth: Int = fullDimensions.visibleWidth
-	override val maxHeight: Int = fullDimensions.visibleHeight
+	override val maxWidth: Int = fullDimensions.rhmiWidth
+	override val maxHeight: Int = fullDimensions.rhmiHeight
 	override val compressFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG
 	override val compressQuality: Int
 		get() {
@@ -102,7 +102,7 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 	)
 
 	// the current appDimensions depending on the widescreen setting
-	val appDimensions = SidebarRHMIDimensions(fullDimensions) {isWidescreen}
+	val appDimensions = UpdatingSidebarRHMIDimensions(fullDimensions) {isWidescreen}
 
 	// the screen dimensions used by FullImageConfig
 	// FullImageConfig uses rhmiDimensions.width/height to set the image capture region
