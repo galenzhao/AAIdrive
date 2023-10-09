@@ -81,7 +81,6 @@ class MusicBrowser(val handler: Handler, val mediaBrowser: MediaBrowserCompat, v
 		if (!connected) return "disconnected root"
 		return when (musicAppInfo.packageName) {
 			"com.spotify.music" -> "com.google.android.projection.gearhead---spotify_media_browser_root_android_auto"   // the Android Auto root for Spotify
-			"com.aspiro.tidal" -> "__ROOT_LOGGED_IN__"   // Tidal Music
 			"com.apple.android.music" -> "__AUTO_ROOT__"     // Apple Music
 			"com.radio.fmradio" -> "__ROOT__"   // Radio FM
 			"app.sunshinelive.de.sunshinelive" -> "/"   // Sunshine Live
@@ -105,6 +104,7 @@ class MusicBrowser(val handler: Handler, val mediaBrowser: MediaBrowserCompat, v
 			"com.tbig.playerpro" -> "__ROOT__"    // PlayerPro
 			"com.amazon.mp3" -> "BROWSER_ROOT"      // Amazon Music, except it sends a null root first
 			"com.qobuz.music" -> "QOBUZ_MEDIA_ROOT"     // Qobuz
+			"app.revanced.android.apps.youtube.music" -> "com.google.android.projection.gearhead"
 			else -> return when(musicAppInfo.className) {   // some apps have a shared service library
 				"com.itmwpb.vanilla.radioapp.player.MusicService" -> "/"    // OneCMS (HOT97 Official)
 				"com.example.android.uamp.media.MusicService" -> "/"        // UAMP Example player (Radio Bob)

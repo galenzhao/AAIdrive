@@ -74,6 +74,7 @@
     <string name="lbl_popupVersion">Popupfönster fungerar endast med IDrive4</string>
     <string name="lbl_ttsUnsupported">TTS stöds ej av din bil</string>
     <string name="lbl_smsPermission">Ge behörighet för inkommande SMS att visa bilder i bilen. Texten är däremot alltid synlig.</string>
+    <string name="lbl_postNotificationsPermission">Tillgång till att visa en serviceavisering att vara på när anslutning till bilen finns</string>
     <string name="lbl_calendarpage">Din kalender kan visas i bilen, erbjuder snabb navigering till bokningar</string>
     <string name="lbl_calendar_description">Händelser i telefonens kalender som ses i Google Calendar kommer att dyka upp i bilen. Alla jobbprofilskalender är ej tillgängliga.</string>
     <string name="lbl_calendar_enabled">Visa kalendern</string>
@@ -255,6 +256,7 @@
     <string name="txt_cds_view">Bildata:</string>
     <string name="txt_car_capabilities">Detaljerade bilfunktioner:</string>
     <string name="lbl_advanced_settings">Avancerade inställningar</string>
+    <string name="lbl_connection_probe_ips">Försök att ansluta till en bil genom TCP-tunnel</string>
     <string name="lbl_assistant">Röstassistent (Beta)</string>
     <string name="lbl_assistant_empty">Inget hittades</string>
     <!-- car status -->
@@ -265,7 +267,7 @@
     <string name="lbl_carinfo_style">Effektiv körstil</string>
     <string name="lbl_carinfo_lastchecked">Senast granskad:</string>
     <string name="lbl_carinfo_lastPosition">Senaste position:</string>
-    <string name="lbl_carinfo_lastPosition_crossStreet">%s och %s</string>
+    <string name="lbl_carinfo_lastPosition_crossStreet">%1$s och %2$s</string>
     <string name="lbl_carinfo_lastPosition_openMap">Öppna Karta</string>
     <string name="lbl_carinfo_vin">VIN:</string>
     <string name="lbl_carinfo_odo">Trippmätare:</string>

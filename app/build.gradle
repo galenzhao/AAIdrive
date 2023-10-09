@@ -31,7 +31,9 @@ def runProguardInDebug = false
 def isRunningOnCI = System.getenv("CI") == "true"
 
 android {
-    compileSdkVersion 32
+    namespace 'me.hufman.androidautoidrive'
+
+    compileSdkVersion 33
     androidGitVersion {
         hideBranches = [ 'main' ]
         // include build number for CI builds, omit for local builds
@@ -45,7 +47,7 @@ android {
     defaultConfig {
         applicationId "me.hufman.androidautoidrive"
         minSdkVersion 23
-        targetSdkVersion 32
+        targetSdkVersion 33
         versionCode androidGitVersion.code() + 1
         versionName androidGitVersion.name()
 //        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -176,6 +178,7 @@ android {
     def assertGit = tasks.create(name: "assertGitVersionRelease") { doLast {
         throw new GradleException("Could not load git versionCode for release build, make sure the project is cloned from git")
     }}
+
     applicationVariants.all { variant ->
         if (!variant.buildType.isDebuggable() && variant.mergedFlavor.versionCode == 1) {
             def assembleTaskName = "assemble${variant.name.capitalize()}"

@@ -246,6 +246,7 @@
     <string name="txt_cds_view">Autó adat riport:</string>
     <string name="txt_car_capabilities">Az autó képességei részletesen:</string>
     <string name="lbl_advanced_settings">Haladó beállítások mutatása</string>
+    <string name="lbl_connection_probe_ips">Próbáljon meg TCP-alagúton keresztül csatlakozni egy autóhoz</string>
     <string name="lbl_assistant">Hang asszisztens (Béta)</string>
     <string name="lbl_assistant_empty">Nincs találat</string>
     <!-- car status -->
@@ -256,7 +257,7 @@
     <string name="lbl_carinfo_style">Efficient Driving Stílus</string>
     <string name="lbl_carinfo_lastchecked">Utoljára ellenőrizve:</string>
     <string name="lbl_carinfo_lastPosition">Utolsó pozíció:</string>
-    <string name="lbl_carinfo_lastPosition_crossStreet">%s és %s</string>
+    <string name="lbl_carinfo_lastPosition_crossStreet">%1$s és %2$s</string>
     <string name="lbl_carinfo_lastPosition_openMap">Térkép megnyitása</string>
     <string name="lbl_carinfo_vin">VIN:</string>
     <string name="lbl_carinfo_odo">Futásteljesítmény:</string>
