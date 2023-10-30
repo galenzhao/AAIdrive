@@ -121,5 +121,20 @@
                 android:hint="@{viewModel.origPaddingTop}"
                 android:text="@={viewModel.paddingTop}" />
         </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="btfetchUuidsWithSdp" />
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint="5000"
+                android:text="@={viewModel.btfetchUuidsWithSdp}" />
+        </LinearLayout>
     </LinearLayout>
 </layout>
