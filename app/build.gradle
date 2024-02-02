@@ -48,7 +48,7 @@ android {
         applicationId "me.hufman.androidautoidrive"
         minSdkVersion 23
         targetSdkVersion 33
-        versionCode androidGitVersion.code() + 1
+        versionCode androidGitVersion.code() + 10401001 + 65535
         versionName androidGitVersion.name()
 //        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunner 'me.hufman.androidautoidrive.DexOpenerAndroidJUnitRunner'

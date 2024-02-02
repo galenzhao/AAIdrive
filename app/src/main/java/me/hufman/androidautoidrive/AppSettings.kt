@@ -71,7 +71,7 @@ interface AppSettings {
 		DIMENSIONS_PADDING_TOP("Dimensions_Padding_Top", "", "Force RHMIDimensions to a specific paddingTop"),
 		DIMENSIONS_MARGIN_RIGHT("Dimensions_Margin_Right", "", "Force RHMIDimensions to a specific marginRight"),
 		BTFETCHUUIDSWITHSDP("btfetchUuidsWithSdp","5000",""),
-
+		ITorqueService("ITorqueService","0",""),
 		MUSIC_SEARCH_QUERY_HISTORY("Music_Search_Query_History","", "Music service search query history")
 
 	}
