@@ -30,7 +30,7 @@ data class MapboxSettings(
 			)
 		}
 
-		const val MAPBOX_GUIDANCE_NIGHT = "mapbox://styles/mapbox/navigation-guidance-night-v4"
+		const val MAPBOX_GUIDANCE_NIGHT = "mapbox://styles/mapbox/dark-zh-v1"
 	}
 
 	val mapStyleUri: String
@@ -39,6 +39,6 @@ data class MapboxSettings(
 		} else if (mapSatellite) {
 			Style.SATELLITE_STREETS
 		} else {
-			if (mapDaytime) Style.MAPBOX_STREETS else MAPBOX_GUIDANCE_NIGHT
+			if (mapDaytime) "mapbox://styles/mapbox/streets-zh-v1" else MAPBOX_GUIDANCE_NIGHT
 		}
 }
