@@ -1,5 +1,6 @@
 package me.hufman.androidautoidrive.carapp.maps
 
+import android.content.Context
 import android.os.Handler
 import android.util.Log
 import de.bmw.idrive.BMWRemoting
@@ -31,6 +32,8 @@ class MapApp(iDriveConnectionStatus: IDriveConnectionStatus, securityAccess: Sec
              val mapAppMode: MapAppMode, val locationProvider: CarLocationProvider,
              val interaction: MapInteractionController, val mapPlaceSearch: MapPlaceSearch, val map: VirtualDisplayScreenCapture) {
 
+	public var applicationContext: Context? = null;
+
 	val carappListener = CarAppListener()
 	val carConnection: BMWRemotingServer
 	val carApp: RHMIApplication
@@ -50,6 +53,8 @@ class MapApp(iDriveConnectionStatus: IDriveConnectionStatus, securityAccess: Sec
 	})
 
 	init {
+		frameUpdater.applicationContext = applicationContext;
+
 		carConnection = IDriveConnection.getEtchConnection(iDriveConnectionStatus.host ?: "127.0.0.1", iDriveConnectionStatus.port ?: 8003, carappListener)
 		val appCert = carAppAssets.getAppCertificate(iDriveConnectionStatus.brand ?: "")?.readBytes() as ByteArray
 		val sas_challenge = carConnection.sas_certificate(appCert)

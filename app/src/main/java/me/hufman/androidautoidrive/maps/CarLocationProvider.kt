@@ -14,6 +14,8 @@ import me.hufman.androidautoidrive.utils.GsonNullable.tryAsJsonObject
 import me.hufman.androidautoidrive.utils.GsonNullable.tryAsJsonPrimitive
 import java.io.Serializable
 import kotlin.math.*
+import cn.hutool.core.util.CoordinateUtil
+import cn.hutool.core.util.CoordinateUtil.Coordinate
 
 data class LatLong(val latitude: Double, val longitude: Double): Serializable {
 	/**
@@ -54,6 +56,8 @@ data class LatLong(val latitude: Double, val longitude: Double): Serializable {
 data class CarHeading(val heading: Float, val speed: Float): Serializable
 
 abstract class CarLocationProvider {
+	public var wgs84ToGcj02: Boolean = false
+
 	var currentLocation: Location? = null
 		protected set
 
@@ -102,7 +106,16 @@ class CdsLocationProvider(val cdsData: CDSData, val id4: Boolean): CarLocationPr
 		val latitude = position?.tryAsJsonPrimitive("latitude")?.tryAsDouble
 		val longitude = position?.tryAsJsonPrimitive("longitude")?.tryAsDouble
 		if (longitude != null && latitude != null && !longitude.isNanOrInfinite() && !latitude.isNanOrInfinite() && longitude.absoluteValue < 180 && latitude.absoluteValue < 90) {
-			currentLatLong = LatLong(latitude, longitude)
+			if(CoordinateUtil.outOfChina(longitude, latitude)) {
+				currentLatLong = LatLong(latitude, longitude)
+			}else{
+				if(wgs84ToGcj02){
+					val coord = CoordinateUtil.gcj02ToWgs84(longitude, latitude);
+					currentLatLong = LatLong(coord.lat, coord.lng)
+				}else{
+					currentLatLong = LatLong(latitude, longitude)
+				}
+			}
 			onLocationUpdate()
 		}
 	}
@@ -166,6 +179,9 @@ class CombinedLocationProvider(val appSettings: AppSettings,
 		if (preferPhoneLocation) {
 			phoneLocationProvider.start()
 		} else {
+			if(appSettings[AppSettings.KEYS.wgs84ToGcj02].toInt() > 10) {
+				carLocationProvider.wgs84ToGcj02 = true
+			}
 			carLocationProvider.start()
 		}
 	}

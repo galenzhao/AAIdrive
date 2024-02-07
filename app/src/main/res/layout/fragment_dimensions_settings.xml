@@ -16,7 +16,68 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/settings_vertical_margin"
-            android:text="Set any value to override that value for the default RHMIDimension" />
+            android:text="
+	// the remaining display area for the app content"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+	val appWidth: Int"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+		get() = rhmiWidth - marginLeft - paddingLeft - marginRight"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+	val appHeight: Int"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+		get() = rhmiHeight - paddingTop"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+	// the usable display area if the padding is removed"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+	val visibleWidth: Int"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+		get() = rhmiWidth - marginLeft - marginRight"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+	val visibleHeight: Int"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+		get() = rhmiHeight"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:text="
+Set any value to override that value for the default RHMIDimension" />
 
         <TextView
             android:layout_width="match_parent"
@@ -72,7 +133,7 @@
             <EditText
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="number"
+                android:inputType="numberSigned"
                 android:hint="@{viewModel.origMarginLeft}"
                 android:text="@={viewModel.marginLeft}" />
         </LinearLayout>
@@ -87,7 +148,7 @@
             <EditText
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="number"
+                android:inputType="numberSigned"
                 android:hint="@{viewModel.origMarginRight}"
                 android:text="@={viewModel.marginRight}" />
         </LinearLayout>
@@ -102,7 +163,7 @@
             <EditText
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="number"
+                android:inputType="numberSigned"
                 android:hint="@{viewModel.origPaddingLeft}"
                 android:text="@={viewModel.paddingLeft}" />
         </LinearLayout>
@@ -117,7 +178,7 @@
             <EditText
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="number"
+                android:inputType="numberSigned"
                 android:hint="@{viewModel.origPaddingTop}"
                 android:text="@={viewModel.paddingTop}" />
         </LinearLayout>
@@ -150,6 +211,51 @@
                 android:inputType="number"
                 android:hint="0"
                 android:text="@={viewModel.ITorqueService}" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="minFrameTime" />
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint=""
+                android:text="@={viewModel.minFrameTime}" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="compressQuality" />
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint=""
+                android:text="@={viewModel.compressQuality}" />
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="wgs84ToGcj02" />
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint=""
+                android:text="@={viewModel.wgs84ToGcj02}" />
         </LinearLayout>
     </LinearLayout>
 </layout>

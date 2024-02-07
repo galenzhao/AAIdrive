@@ -72,8 +72,10 @@ interface AppSettings {
 		DIMENSIONS_MARGIN_RIGHT("Dimensions_Margin_Right", "", "Force RHMIDimensions to a specific marginRight"),
 		BTFETCHUUIDSWITHSDP("btfetchUuidsWithSdp","5000",""),
 		ITorqueService("ITorqueService","0",""),
-		MUSIC_SEARCH_QUERY_HISTORY("Music_Search_Query_History","", "Music service search query history")
-
+		MUSIC_SEARCH_QUERY_HISTORY("Music_Search_Query_History","", "Music service search query history"),
+		MINFRAMETIME("minFrameTime","1000",""),
+		compressQuality("compressQuality","30",""),
+		wgs84ToGcj02("wgs84ToGcj02","0","")
 	}
 
 	/** Store the active preferences in a singleton */

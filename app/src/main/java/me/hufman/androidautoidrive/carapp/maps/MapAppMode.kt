@@ -19,22 +19,27 @@ import me.hufman.androidautoidrive.maps.LatLong
 import kotlin.math.max
 
 class DynamicScreenCaptureConfig(val fullDimensions: RHMIDimensions,
+                                 val appSettings: MutableAppSettingsObserver,
                                  val carTransport: MusicAppMode.TRANSPORT_PORTS,
                                  val timeProvider: () -> Long = {System.currentTimeMillis()}): ScreenCaptureConfig {
 	companion object {
 		const val RECENT_INTERACTION_THRESHOLD = 5000
 	}
 
-	override val maxWidth: Int = fullDimensions.rhmiWidth
-	override val maxHeight: Int = fullDimensions.rhmiHeight
+	override val maxWidth: Int = fullDimensions.visibleWidth
+	override val maxHeight: Int = fullDimensions.visibleHeight
 	override val compressFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG
 	override val compressQuality: Int
 		get() {
-			val recentInteraction = recentInteractionUntil > timeProvider()
-			return if (carTransport == MusicAppMode.TRANSPORT_PORTS.USB) {
-				if (recentInteraction) 40 else 65
-			} else {
-				if (recentInteraction) 12 else 40
+			return if (appSettings[AppSettings.KEYS.compressQuality].toInt()>10){
+				appSettings[AppSettings.KEYS.compressQuality].toInt()
+			}else {
+				val recentInteraction = recentInteractionUntil > timeProvider()
+				return if (carTransport == MusicAppMode.TRANSPORT_PORTS.USB) {
+					if (recentInteraction) 40 else 65
+				} else {
+					if (recentInteraction) 12 else 40
+				}
 			}
 		}
 
@@ -63,7 +68,7 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 		          appSettings: MutableAppSettingsObserver,
 		          cdsData: CDSData,
 		          carTransport: MusicAppMode.TRANSPORT_PORTS): MapAppMode {
-			val screenCaptureConfig = DynamicScreenCaptureConfig(fullDimensions, carTransport)
+			val screenCaptureConfig = DynamicScreenCaptureConfig(fullDimensions, appSettings, carTransport)
 			return MapAppMode(fullDimensions, appSettings, cdsData, screenCaptureConfig)
 		}
 	}

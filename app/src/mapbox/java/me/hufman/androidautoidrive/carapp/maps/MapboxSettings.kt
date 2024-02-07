@@ -35,7 +35,15 @@ data class MapboxSettings(
 
 	val mapStyleUri: String
 		get() = if (mapCustomStyle && mapboxStyleUrl.isNotBlank()) {
-			mapboxStyleUrl
+			if (mapboxStyleUrl.split(";").size == 2){
+				if (mapDaytime){
+					mapboxStyleUrl.split(";")[0]
+				}else{
+					mapboxStyleUrl.split(";")[1]
+				}
+			}else {
+				mapboxStyleUrl
+			}
 		} else if (mapSatellite) {
 			Style.SATELLITE_STREETS
 		} else {

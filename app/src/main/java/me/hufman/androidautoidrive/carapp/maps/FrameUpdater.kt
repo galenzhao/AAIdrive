@@ -1,11 +1,14 @@
 package me.hufman.androidautoidrive.carapp.maps
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.media.ImageReader
 import android.os.Handler
 import android.util.Log
 import de.bmw.idrive.BMWRemoting
 import io.bimmergestalt.idriveconnectkit.rhmi.RHMIModel
+import me.hufman.androidautoidrive.AppSettings
+import me.hufman.androidautoidrive.AppSettingsViewer
 
 interface FrameModeListener {
 	fun onResume()
@@ -13,6 +16,7 @@ interface FrameModeListener {
 }
 
 class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: FrameModeListener?): Runnable {
+	public var applicationContext: Context? = null;
 	var destination: RHMIModel? = null
 	var isRunning = true
 	private var handler: Handler? = null
@@ -23,7 +27,14 @@ class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: F
 		display.registerImageListener(ImageReader.OnImageAvailableListener // Called from the UI thread to say a new image is available
 		{
 			// let the car thread consume the image
-			schedule()
+
+			if (applicationContext != null) {
+				AppSettings.loadSettings(applicationContext!!)
+				val appSettings = AppSettingsViewer();
+				schedule(appSettings[AppSettings.KEYS.MINFRAMETIME].toInt())
+			}else {
+				schedule(5)
+			}
 		})
 		schedule()  // check for a first image
 	}
@@ -32,10 +43,24 @@ class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: F
 		var bitmap = display.getFrame()
 		if (bitmap != null) {
 			sendImage(bitmap)
-			schedule()  // check if there's another frame ready for us right now
+//			schedule()  // check if there's another frame ready for us right now
+			if (applicationContext != null) {
+				AppSettings.loadSettings(applicationContext!!)
+				val appSettings = AppSettingsViewer();
+				schedule(appSettings[AppSettings.KEYS.MINFRAMETIME].toInt())
+			}else {
+				schedule(30)
+			}
 		} else {
 			// wait for the next frame, unless the callback comes back sooner
-			schedule(1000)
+//			schedule(1000)
+			if (applicationContext != null) {
+				AppSettings.loadSettings(applicationContext!!)
+				val appSettings = AppSettingsViewer();
+				schedule(appSettings[AppSettings.KEYS.MINFRAMETIME].toInt())
+			}else {
+				schedule(1000)
+			}
 		}
 	}
 

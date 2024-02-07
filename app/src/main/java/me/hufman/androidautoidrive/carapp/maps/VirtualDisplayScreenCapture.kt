@@ -21,7 +21,7 @@ interface ScreenCaptureConfig {
 data class StaticScreenCaptureConfig(override val maxWidth: Int,
                                      override val maxHeight: Int,
                                      override var compressFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG,
-                                     override var compressQuality: Int = 65  //quality 65 is fine, and you get readable small texts, below that it was sometimes hard to read
+                                     override var compressQuality: Int = 30  //quality 65 is fine, and you get readable small texts, below that it was sometimes hard to read
 ): ScreenCaptureConfig
 
 /**

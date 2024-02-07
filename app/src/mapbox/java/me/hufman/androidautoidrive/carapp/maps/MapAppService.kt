@@ -16,7 +16,7 @@ import me.hufman.androidautoidrive.maps.MapboxPlaceSearch
 import java.lang.Exception
 
 class MapAppService: CarAppService() {
-	val appSettings = AppSettingsViewer()
+	//val appSettings = AppSettingsViewer()
 	var mapAppMode: MapAppMode? = null
 	var mapApp: MapApp? = null
 	var mapScreenCapture: VirtualDisplayScreenCapture? = null
@@ -25,11 +25,16 @@ class MapAppService: CarAppService() {
 	var mapListener: MapsInteractionControllerListener? = null
 
 	override fun shouldStartApp(): Boolean {
+		AppSettings.loadSettings(applicationContext);
+		val appSettings = AppSettingsViewer();
+
 		return appSettings[AppSettings.KEYS.ENABLED_MAPS].toBoolean()
 	}
 
 	override fun onCarStart() {
 		Log.i(MainService.TAG, "Starting Mapbox")
+		AppSettings.loadSettings(applicationContext);
+		val appSettings = AppSettingsViewer();
 		val cdsData = CDSDataProvider()
 		cdsData.setConnection(CarInformation.cdsData.asConnection(cdsData))
 		val carLocationProvider = CombinedLocationProvider(
@@ -37,6 +42,7 @@ class MapAppService: CarAppService() {
 				CdsLocationProvider(cdsData, CarCapabilitiesSummarized(CarInformation()).isId4)
 		)
 		val dimensions = CustomRHMIDimensions(RHMIDimensions.create(carInformation.capabilities), appSettings)
+
 		val mapAppMode = MapAppMode.build(dimensions, MutableAppSettingsReceiver(this, handler), cdsData, MusicAppMode.TRANSPORT_PORTS.fromPort(iDriveConnectionStatus.port) ?: MusicAppMode.TRANSPORT_PORTS.BT)
 		this.mapAppMode = mapAppMode
 		val mapScreenCapture = VirtualDisplayScreenCapture.build(mapAppMode)
@@ -54,6 +60,7 @@ class MapAppService: CarAppService() {
 				CarAppAssetResources(applicationContext, "smartthings"),
 				mapAppMode, carLocationProvider,
 				MapInteractionControllerIntent(applicationContext), mapPlaceSearch, mapScreenCapture)
+		mapApp.applicationContext = applicationContext;
 		this.mapApp = mapApp
 		val handler = this.handler!!
 		mapApp.onCreate(handler)

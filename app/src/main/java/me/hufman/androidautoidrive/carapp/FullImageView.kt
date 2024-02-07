@@ -51,18 +51,13 @@ class FullImageView(val state: RHMIState, val title: String, val config: FullIma
 		state.focusCallback = FocusCallback { focused ->
 			if (focused) {
 				Log.i(TAG, "Showing map on full screen")
-				imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_X.id, -config.rhmiDimensions.paddingLeft)    // positionX
-				imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_Y.id, -config.rhmiDimensions.paddingTop)    // positionY
-				imageComponent.setProperty(RHMIProperty.PropertyId.WIDTH.id, config.rhmiDimensions.rhmiWidth)
-				imageComponent.setProperty(RHMIProperty.PropertyId.HEIGHT.id, config.rhmiDimensions.rhmiHeight)
+				imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_X.id, -config.rhmiDimensions.paddingLeft)    // positionX, 180
+				imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_Y.id, -config.rhmiDimensions.paddingTop)    // positionY, 67
+				imageComponent.setProperty(RHMIProperty.PropertyId.WIDTH.id, config.rhmiDimensions.visibleWidth) // 970
+//				get() = rhmiWidth - marginLeft - marginRight, 980-0-5
+				imageComponent.setProperty(RHMIProperty.PropertyId.HEIGHT.id, config.rhmiDimensions.visibleHeight) //default
+				frameUpdater.showWindow(config.rhmiDimensions.visibleWidth, config.rhmiDimensions.visibleHeight, imageModel)
 
-//				image.setProperty(RHMIProperty.PropertyId.WIDTH, rhmiDimensions.rhmiWidth)
-//				image.setProperty(RHMIProperty.PropertyId.HEIGHT, rhmiDimensions.rhmiHeight)
-//
-//				image.setProperty(RHMIProperty.PropertyId.POSITION_X,0-rhmiDimensions.paddingLeft)
-//				image.setProperty(RHMIProperty.PropertyId.POSITION_Y,0-rhmiDimensions.paddingTop)
-
-				frameUpdater.showWindow(config.rhmiDimensions.rhmiWidth, config.rhmiDimensions.rhmiHeight, imageModel)
 				focusEvent.triggerEvent(mapOf(0 to inputList.id, 41 to 3))
 			} else {
 				Log.i(TAG, "Hiding map on full screen")
@@ -124,7 +119,7 @@ class FullImageView(val state: RHMIState, val title: String, val config: FullIma
 		imageComponent.setVisible(true)
 		imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_X.id, -config.rhmiDimensions.paddingLeft)    // positionX
 		imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_Y.id, -config.rhmiDimensions.paddingTop)    // positionY
-		imageComponent.setProperty(RHMIProperty.PropertyId.WIDTH.id, config.rhmiDimensions.rhmiWidth)
-		imageComponent.setProperty(RHMIProperty.PropertyId.HEIGHT.id, config.rhmiDimensions.rhmiHeight)
+		imageComponent.setProperty(RHMIProperty.PropertyId.WIDTH.id, config.rhmiDimensions.visibleWidth)
+		imageComponent.setProperty(RHMIProperty.PropertyId.HEIGHT.id, config.rhmiDimensions.visibleHeight)
 	}
 }
