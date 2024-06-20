@@ -33,6 +33,7 @@ def isRunningOnCI = System.getenv("CI") == "true"
 android {
     namespace 'me.hufman.androidautoidrive'
     packagingOptions {
+        exclude'META-INF/INDEX.LIST'
     }
 
     androidGitVersion {
