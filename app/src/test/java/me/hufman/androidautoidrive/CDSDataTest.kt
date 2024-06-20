@@ -3,7 +3,7 @@ package me.hufman.androidautoidrive
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.Observer
 import com.google.gson.JsonObject
-import com.nhaarman.mockito_kotlin.*
+import org.mockito.kotlin.*
 import de.bmw.idrive.BMWRemotingServer
 import io.bimmergestalt.idriveconnectkit.CDS
 import me.hufman.androidautoidrive.cds.*
@@ -25,11 +25,11 @@ class CDSDataTest {
 		verify(etch).cds_create()
 		verifyNoMoreInteractions(etch)
 		connection.subscribeProperty(CDS.VEHICLE.VIN, 5000)
-		verify(etch).cds_addPropertyChangedEventHandler(1, CDS.VEHICLE.VIN.propertyName, CDS.VEHICLE.VIN.ident.toString(), 5000)
+		verify(etch).cds_addPropertyChangedEventHandler(1, CDS.VEHICLE.VIN.ident.toString(), CDS.VEHICLE.VIN.propertyName, 5000)
 		verify(etch).cds_getPropertyAsync(1, CDS.VEHICLE.VIN.ident.toString(), CDS.VEHICLE.VIN.propertyName)
 		verifyNoMoreInteractions(etch)
 		connection.unsubscribeProperty(CDS.VEHICLE.VIN)
-		verify(etch).cds_removePropertyChangedEventHandler(1, CDS.VEHICLE.VIN.propertyName, CDS.VEHICLE.VIN.ident.toString())
+		verify(etch).cds_removePropertyChangedEventHandler(1, CDS.VEHICLE.VIN.ident.toString(), CDS.VEHICLE.VIN.propertyName)
 	}
 
 	@Test
@@ -141,7 +141,7 @@ class CDSDataTest {
 		val cdsData = CDSDataProvider()
 		cdsData.setConnection(connection)
 		val observer = object: Observer<JsonObject> {
-			override fun onChanged(t: JsonObject?) {
+			override fun onChanged(t: JsonObject) {
 				t ?: return
 				vin = t["VIN"].asString
 			}
