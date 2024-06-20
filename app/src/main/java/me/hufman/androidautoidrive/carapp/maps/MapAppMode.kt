@@ -62,7 +62,7 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 				currentNavDestinationObservable.postValue(value)
 				field = value
 			}
-		private val currentNavDestinationObservable = MutableLiveData<LatLong>()
+		private val currentNavDestinationObservable = MutableLiveData<LatLong?>()
 
 		fun build(fullDimensions: RHMIDimensions,
 		          appSettings: MutableAppSettingsObserver,
@@ -88,7 +88,7 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 		set(value) {
 			MapAppMode.currentNavDestination = value
 		}
-	val currentNavDestinationObservable: MutableLiveData<LatLong>
+	val currentNavDestinationObservable: MutableLiveData<LatLong?>
 		get() = MapAppMode.currentNavDestinationObservable
 
 	// navigation distance units

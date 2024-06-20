@@ -1,9 +1,10 @@
 package me.hufman.androidautoidrive
 
-import com.nhaarman.mockito_kotlin.*
+import org.mockito.kotlin.*
 import de.bmw.idrive.BMWRemoting
 import io.bimmergestalt.idriveconnectkit.android.CarAppResources
 import io.bimmergestalt.idriveconnectkit.rhmi.*
+import io.bimmergestalt.idriveconnectkit.rhmi.deserialization.loadFromXML
 import me.hufman.androidautoidrive.carapp.L
 import me.hufman.androidautoidrive.carapp.RHMIActionAbort
 import me.hufman.androidautoidrive.carapp.SettingsToggleList

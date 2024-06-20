@@ -33,11 +33,9 @@ def isRunningOnCI = System.getenv("CI") == "true"
 android {
     namespace 'me.hufman.androidautoidrive'
     packagingOptions {
-
         exclude'META-INF/INDEX.LIST'
-
     }
-    compileSdkVersion 33
+
     androidGitVersion {
         hideBranches = [ 'main' ]
         // include build number for CI builds, omit for local builds
@@ -50,6 +48,7 @@ android {
     }
     defaultConfig {
         applicationId "me.hufman.androidautoidrive"
+        compileSdk 33
         minSdkVersion 23
         targetSdkVersion 33
         versionCode androidGitVersion.code() + 10401001 + 65535
@@ -98,6 +97,7 @@ android {
 
     buildFeatures {
         dataBinding true
+        buildConfig true
     }
     buildTypes {
         release {
@@ -118,16 +118,16 @@ android {
                     proguardFile 'proguard-rules.pro'
                 }
             }
-            testCoverageEnabled true
+            testCoverageEnabled false
             pseudoLocalesEnabled true
         }
     }
     bundle {
         language.enableSplit = false
     }
-    lintOptions {
-        checkReleaseBuilds false
+    lint {
         abortOnError false
+        checkReleaseBuilds false
     }
     testOptions {
         animationsDisabled = true
@@ -141,7 +141,7 @@ android {
         }
     }
 
-    flavorDimensions "map", "analytics", "storefront"
+    flavorDimensions = ["map", "analytics", "storefront"]
 
     productFlavors {
         nonalytics {
@@ -302,18 +302,18 @@ dependencies {
     androidTestImplementation 'androidx.test:rules:1.4.0'
     androidTestImplementation 'androidx.test:core-ktx:1.4.0'
     testImplementation "androidx.arch.core:core-testing:2.1.0"
-    testImplementation "org.mockito:mockito-core:3.4.4"
-    testImplementation 'com.nhaarman:mockito-kotlin:1.6.0'
+    testImplementation "org.mockito:mockito-core:5.10.0"
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:4.1.0'
     testImplementation 'org.awaitility:awaitility-scala:3.1.5'
     androidTestImplementation "org.mockito:mockito-android:3.4.4"
-    androidTestImplementation 'com.nhaarman:mockito-kotlin:1.6.0'
+    androidTestImplementation 'org.mockito.kotlin:mockito-kotlin:4.1.0'
     androidTestImplementation 'com.github.tmurakami:dexopener:2.0.5'
     androidTestImplementation 'org.awaitility:awaitility-scala:3.1.5'
-    implementation 'io.bimmergestalt:IDriveConnectKit:0.6'
-    implementation 'io.bimmergestalt:IDriveConnectKitAndroid:0.5'
-    testImplementation 'io.bimmergestalt:IDriveConnectKit:0.6'
-    androidTestImplementation 'io.bimmergestalt:IDriveConnectKit:0.6'
-    androidTestImplementation 'io.bimmergestalt:IDriveConnectKitAndroid:0.2'
+    implementation 'io.bimmergestalt.idriveconnectkit:idriveconnectkit:0.7'
+    implementation 'io.bimmergestalt:IDriveConnectKitAndroid:0.6'
+    testImplementation 'io.bimmergestalt.idriveconnectkit:idriveconnectkit:0.7'
+    androidTestImplementation 'io.bimmergestalt.idriveconnectkit:idriveconnectkit:0.7'
+    androidTestImplementation 'io.bimmergestalt:IDriveConnectKitAndroid:0.6'
     androidTestImplementation "org.bouncycastle:bcmail-jdk16:1.46"
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlin_coroutines_version"
     testImplementation "org.powermock:powermock-core:2.0.9"

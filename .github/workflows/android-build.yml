@@ -19,7 +19,7 @@ env:
 
 jobs:
   unitTest:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -32,18 +32,18 @@ jobs:
             map: Mapbox   # Mapbox requires secrets to build
     steps:
       - name: Checkout the project
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 11
+          java-version: 17
 
       - name: Prepare cached external dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: aaidrive_external_${{ hashFiles('.github/actions/download-externals-action/download.sh') }}
           path: |
@@ -60,14 +60,16 @@ jobs:
         run: ./gradlew test${{ matrix.map }}${{ matrix.analytics }}FullDebugUnitTestCoverage
       - name: Upload CodeCov report
         if: github.event.pull_request.title != 'New Crowdin updates' && github.event.ref != 'refs/heads/l10n_main'   # don't upload coverage for Crowdin pushes
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: "${{ secrets.CODECOV_TOKEN }}"
         with:
           files: app/build/reports/jacoco/jacoco.xml
           flags: unittests
 
 
   instrumentedTest:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -80,18 +82,23 @@ jobs:
           - hasSecret: false
             map: Mapbox   # Mapbox requires secrets to build
     steps:
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
       - name: Checkout the project
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 11
+          java-version: 17
       - name: Prepare cached external dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: aaidrive_external_${{ hashFiles('.github/actions/download-externals-action/download.sh') }}
           path: |
@@ -117,7 +124,9 @@ jobs:
           script: ./gradlew connected${{ matrix.map }}NonalyticsFullDebugAndroidTestCoverage --stacktrace
       - name: Upload CodeCov report
         if: matrix.map == 'Nomap' && github.event.pull_request.title != 'New Crowdin updates' && github.event.ref != 'refs/heads/l10n_main'   # don't upload Gmap test results, which don't run during PRs
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: "${{ secrets.CODECOV_TOKEN }}"
         with:
           files: app/build/reports/jacoco/jacoco.xml
 #          flags: instrumentedtests
@@ -145,21 +154,21 @@ jobs:
     # Only build on the main repo, which has the secrets configured
     if: github.repository == 'BimmerGestalt/AAIdrive' && github.event_name == 'push'
     needs: [unitTest]  # wait for the tests to succeed
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout the project
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 11
+          java-version: 17
 
       - name: Prepare cached external dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: aaidrive_external_${{ hashFiles('.github/actions/download-externals-action/download.sh') }}
           path: |
@@ -195,7 +204,7 @@ jobs:
   upload_s3:
     if: github.event_name == 'push'
     needs: package
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Download project artifacts
         uses: actions/download-artifact@v3
@@ -222,7 +231,7 @@ jobs:
   upload_release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: package
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Download project artifacts
         uses: actions/download-artifact@v2
