@@ -39,7 +39,9 @@ class NotificationAppService: CarAppService() {
 		// The service automatically loads all the data onStart if the car is connected
 		// but we also send a manual request if the service is already runnin
 		NotificationListenerServiceImpl.startService(applicationContext)
-		applicationContext.sendBroadcast(Intent(NotificationListenerServiceImpl.INTENT_REQUEST_DATA))
+		val intent = Intent(NotificationListenerServiceImpl.INTENT_REQUEST_DATA)
+			.setPackage(packageName)
+		applicationContext.sendBroadcast(intent)
 
 		handler.post {
 			if (running) {
@@ -47,6 +49,7 @@ class NotificationAppService: CarAppService() {
 				// using a handler to automatically handle shutting down during init
 				val carappReadout = ReadoutApp(iDriveConnectionStatus, securityAccess,
 						CarAppAssetResources(applicationContext, "news"),
+						CarAppAssetResources(applicationContext, "carinfo_unsigned"),
 						handler, applicationContext.resources, AppSettingsViewer())
 				carappNotifications?.readoutInteractions?.readoutController = carappReadout.readoutController
 				this.carappReadout = carappReadout
@@ -58,7 +61,9 @@ class NotificationAppService: CarAppService() {
 				// start up the id5 statusbar app
 				// using a handler to automatically handle shutting down during init
 				val carappStatusbar = ID5StatusbarApp(iDriveConnectionStatus, securityAccess,
-						CarAppWidgetAssetResources(applicationContext, "bmwone"), GraphicsHelpersAndroid())
+						CarAppWidgetAssetResources(applicationContext, "bmwone"),
+						CarAppWidgetAssetResources(applicationContext, "id5statusbar_unsigned"),
+						GraphicsHelpersAndroid())
 				carappNotifications?.id5Upgrade(carappStatusbar)
 				this.carappStatusbar = carappStatusbar
 				Log.i(MainService.TAG, "Finished initializing id5 statusbar")

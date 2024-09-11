@@ -7,6 +7,8 @@ import android.content.IntentFilter
 import android.location.Address
 import android.os.Handler
 import android.util.Log
+import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
 import io.bimmergestalt.idriveconnectkit.rhmi.RHMIApplication
 import io.bimmergestalt.idriveconnectkit.rhmi.RHMIEvent
 import me.hufman.androidautoidrive.AppSettings
@@ -83,6 +85,7 @@ class NavigationTriggerCustomNav(val context: Context): NavigationTrigger {
 class NavigationTriggerSender(val context: Context): NavigationTrigger {
 	override fun triggerNavigation(destination: Address) {
 		val intent = Intent(NavigationTriggerReceiver.INTENT_NAVIGATION)
+				.setPackage(context.packageName)
 				.putExtra(NavigationTriggerReceiver.EXTRA_DESTINATION, destination)
 		context.sendBroadcast(intent)
 	}
@@ -101,7 +104,7 @@ class NavigationTriggerReceiver(val trigger: NavigationTrigger): BroadcastReceiv
 	}
 
 	fun register(context: Context, handler: Handler) {
-		context.registerReceiver(this, IntentFilter(INTENT_NAVIGATION), null, handler)
+		ContextCompat.registerReceiver(context, this, IntentFilter(INTENT_NAVIGATION), null, handler, RECEIVER_NOT_EXPORTED)
 	}
 
 	fun unregister(context: Context) {

@@ -50,6 +50,10 @@ class PermissionsModel(private val notificationListenerState: LiveData<Boolean>,
 	val supportsBluetoothConnectPermission: LiveData<Boolean> = _supportsBluetoothConnectPermission
 	private val _hasBluetoothConnectPermission = MutableLiveData(false)
 	val hasBluetoothConnectPermission: LiveData<Boolean> = _hasBluetoothConnectPermission
+	private val _supportsFullScreenPermission = MutableLiveData(false)
+	val supportsFullScreenPermission: LiveData<Boolean> = _supportsFullScreenPermission
+	private val _hasFullScreenPermission = MutableLiveData(false)
+	val hasFullScreenPermission: LiveData<Boolean> = _hasFullScreenPermission
 
 	private val _hasSpotify = MutableLiveData(false)
 	val hasSpotify: LiveData<Boolean> = _hasSpotify
@@ -75,6 +79,8 @@ class PermissionsModel(private val notificationListenerState: LiveData<Boolean>,
 		}
 		_supportsBluetoothConnectPermission.value = android.os.Build.VERSION.SDK_INT >= 31
 		_hasBluetoothConnectPermission.value = permissionsState.hasBluetoothConnectPermission
+		_supportsFullScreenPermission.value = android.os.Build.VERSION.SDK_INT >= 34
+		_hasFullScreenPermission.value = permissionsState.hasFullscreenPermission
 	}
 
 	/** Try connecting to Spotify */
@@ -144,7 +150,7 @@ class PermissionsModel(private val notificationListenerState: LiveData<Boolean>,
 		notificationListenerState.removeObserver(this)
 	}
 
-	override fun onChanged(t: Boolean) {
+	override fun onChanged(value: Boolean) {
 		// an observed LiveData has updated
 		update()
 	}
@@ -181,6 +187,13 @@ class PermissionsState(private val appContext: Context) {
 	val hasBluetoothConnectPermission: Boolean
 		get() = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
 			ContextCompat.checkSelfPermission(appContext, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+		} else {
+			true
+		}
+
+	val hasFullscreenPermission: Boolean
+		get() = if (android.os.Build.VERSION.SDK_INT >= 34) {
+			ContextCompat.checkSelfPermission(appContext, Manifest.permission.USE_FULL_SCREEN_INTENT) == PackageManager.PERMISSION_GRANTED
 		} else {
 			true
 		}
