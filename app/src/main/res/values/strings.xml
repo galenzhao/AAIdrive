@@ -78,7 +78,6 @@
     <string name="lbl_notification_permissions">Access to view notifications</string>
     <string name="lbl_notification_sms_permissions">Access to show SMS pictures</string>
     <string name="lbl_notification_permissions_hint">You may grant notification permissions later and can easily revoke them at any time</string>
-    <string name="lbl_popupVersion">Popups only work with IDrive4</string>
     <string name="lbl_ttsUnsupported">TTS is not supported by your car</string>
     <string name="lbl_smsPermission">Grant the SMS permission to view pictures from incoming SMS images in the car. The text itself is always visible.</string>
     <string name="lbl_postNotificationsPermission">Access to show a service notification to stay running while connected to the car</string>
@@ -216,6 +215,8 @@
     <string name="txt_setup_mini_mine_detected">The new MINI app is installed, which might cause problems with Mini Connected and is not supported</string>
     <string name="txt_setup_bmw_mine_conflict">Both the BMW Connected and My BMW apps are installed, which might cause connection instability unless connecting over USB</string>
     <string name="txt_setup_mini_mine_conflict">Both the MINI Connected and My MINI apps are installed, which might cause connection instability unless connecting over USB</string>
+    <string name="txt_setup_bmw_mine_missing_device">The MyBMW app requires Nearby Device permissions to connect to the car</string>
+    <string name="txt_setup_mini_mine_missing_device">The MINI app requires Nearby Device permissions to connect to the car</string>
     <string name="txt_setup_security_missing">Security Service is unreachable:</string>
 
     <string name="txt_setup_background_killed">The app was killed while connected to the car</string>
@@ -267,9 +268,6 @@
     <string name="txt_capabilities_audiostate_id4">ID4 does not support this feature</string>
     <string name="txt_capabilities_audiostate_audiocontext">This feature requires Audio Context</string>
     <string name="txt_capabilities_audiostate_spotify">Install the latest Spotify to enable this feature</string>
-    <string name="txt_capabilities_popup_yes">Notification Popups are supported</string>
-    <string name="txt_capabilities_popup_no">Notification Popups are not supported</string>
-    <string name="txt_capabilities_popup_hint">Notification Popups are only supported on ID4</string>
     <string name="txt_capabilities_tts_yes">Notification Text-to-Speech is supported</string>
     <string name="txt_capabilities_tts_no">Notification Text-to-Speech is not supported</string>
     <string name="txt_capabilities_navi_yes">Car Navigation is supported</string>
@@ -400,6 +398,7 @@
     <string name="CARINFO_TITLE_GPS">GPS Info</string>
     <string name="CARINFO_TITLE_AC">Air Condition Info</string>
     <string name="CARINFO_TITLE_WINDOWS">Windows Info</string>
+    <string name="CARINFO_TITLE_TRAVEL">Travel Info</string>
     <string name="CARINFO_ENGINE">Engine</string>
     <string name="CARINFO_OIL">Oil</string>
     <string name="CARINFO_BATTERY">Battery</string>
@@ -411,6 +410,9 @@
     <string name="CARINFO_ACC_BATTERY">Acc. Battery</string>
     <string name="CARINFO_EV_BATTERY">EV Battery</string>
     <string name="CARINFO_FUEL">Fuel</string>
+    <string name="CARINFO_GASOLINE">Gasoline</string>
+    <string name="CARINFO_DIESEL">Diesel</string>
+    <string name="CARINFO_RANGE">Range</string>
     <string name="CARINFO_ACCEL">Accel</string>
     <string name="CARINFO_STEERING">Steering</string>
     <string name="CARINFO_RPM">RPM</string>
@@ -449,6 +451,8 @@
     <string name="CARINFO_GPSALTITUDE">Altitude</string>
     <string name="CARINFO_GPSLATITUDE">Lat</string>
     <string name="CARINFO_GPSLONGITUDE">Long</string>
+    <string name="CARINFO_NAV_DISTANCE">Distance</string>
+    <string name="CARINFO_NAV_ETA">ETA</string>
     <string name="NOTIFICATIONS_TITLE">Notifications</string>
     <string name="NOTIFICATIONS_EMPTY_LIST">No Notifications</string>
     <string name="NOTIFICATION_CLEAR_ACTION">Clear</string>

@@ -72,7 +72,6 @@
     <string name="lbl_notification_permissions">Доступ к уведомлениям</string>
     <string name="lbl_notification_sms_permissions">Доступ к отображению SMS изображений</string>
     <string name="lbl_notification_permissions_hint">Вы можете предоставить права на уведомления позже и легко отозвать их в любое время</string>
-    <string name="lbl_popupVersion">Всплывающие уведомления работают только с IDrive4</string>
     <string name="lbl_ttsUnsupported">TTS не поддерживается вашим автомобилем</string>
     <string name="lbl_smsPermission">Доступ к смс и фотографиям. Показывать всегда текст.</string>
     <string name="lbl_postNotificationsPermission">Доступ к отображению служебного уведомления для продолжения работы во время подключения к автомобилю</string>
@@ -195,6 +194,8 @@
     <string name="txt_setup_mini_mine_detected">Установлено новое приложение MINI, которое может быть причиной проблем с MINI Connected и не поддерживается</string>
     <string name="txt_setup_bmw_mine_conflict">BMW Connected и My BMW установлены одновременно. Соединение может быть нестабильно, если оно выполняется не через USB</string>
     <string name="txt_setup_mini_mine_conflict">Both the MINI Connected and My MINI apps are installed, which might cause connection instability unless connecting over USB</string>
+    <string name="txt_setup_bmw_mine_missing_device">Для подключения к автомобилю приложению MyBMW требуется разрешение на доступ к устройству поблизости</string>
+    <string name="txt_setup_mini_mine_missing_device">Для подключения к автомобилю приложению MINI требуются разрешения на доступ к устройству поблизости</string>
     <string name="txt_setup_security_missing">Служба безопасности недоступна:</string>
     <string name="txt_setup_background_killed">Приложение было убито во время соединения с автомобилем</string>
     <string name="txt_setup_background_suspended">Приложение было приостановлено в фоновом режиме во время соединения с автомобилем</string>
@@ -241,9 +242,6 @@
     <string name="txt_capabilities_audiostate_id4">ID4 не поддерживает эту функцию</string>
     <string name="txt_capabilities_audiostate_audiocontext">Эта функция требует аудио контекста</string>
     <string name="txt_capabilities_audiostate_spotify">Установите последнюю версию Spotify, чтобы включить эту функцию</string>
-    <string name="txt_capabilities_popup_yes">Поддерживаются всплывающие уведомления</string>
-    <string name="txt_capabilities_popup_no">Всплывающие уведомления не поддерживаются</string>
-    <string name="txt_capabilities_popup_hint">Всплывающие уведомления поддерживаются только в ID4</string>
     <string name="txt_capabilities_tts_yes">Поддерживается синтезатор речи для уведомлений</string>
     <string name="txt_capabilities_tts_no">Не поддерживается синтезатор речи для уведомлений</string>
     <string name="txt_capabilities_navi_yes">Автонавигация поддерживается</string>
@@ -358,6 +356,7 @@
     <string name="CARINFO_TITLE_GPS">GPS Info</string>
     <string name="CARINFO_TITLE_AC">Кондиционер</string>
     <string name="CARINFO_TITLE_WINDOWS">Окна</string>
+    <string name="CARINFO_TITLE_TRAVEL">Информация о поездке</string>
     <string name="CARINFO_ENGINE">Двигатель</string>
     <string name="CARINFO_OIL">Масло</string>
     <string name="CARINFO_BATTERY">Аккумулятор</string>
@@ -369,6 +368,9 @@
     <string name="CARINFO_ACC_BATTERY">Акт. батарея</string>
     <string name="CARINFO_EV_BATTERY">Батарея EV</string>
     <string name="CARINFO_FUEL">Топливо</string>
+    <string name="CARINFO_GASOLINE">Бензин</string>
+    <string name="CARINFO_DIESEL">Дизель</string>
+    <string name="CARINFO_RANGE">Диапазон</string>
     <string name="CARINFO_ACCEL">Ускор.</string>
     <string name="CARINFO_STEERING">Поворот</string>
     <string name="CARINFO_RPM">об./мин.</string>
@@ -407,6 +409,8 @@
     <string name="CARINFO_GPSALTITUDE">Высота</string>
     <string name="CARINFO_GPSLATITUDE">Шир.</string>
     <string name="CARINFO_GPSLONGITUDE">Долг.</string>
+    <string name="CARINFO_NAV_DISTANCE">Расстояние</string>
+    <string name="CARINFO_NAV_ETA">Прибытие</string>
     <string name="NOTIFICATIONS_TITLE">Уведомления</string>
     <string name="NOTIFICATIONS_EMPTY_LIST">Нет уведомлений</string>
     <string name="NOTIFICATION_CLEAR_ACTION">Очистить </string>
