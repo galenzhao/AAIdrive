@@ -99,7 +99,7 @@ class NavIntentActivity: AppCompatActivity() {
 		if (query != null) {
 			findViewById<TextView>(R.id.txtNavError).text = query.toString()       // in case we need to show it for parse errors
 			val navParser = NavigationParser(AndroidGeocoderSearcher(this.applicationContext), URLRedirector())
-			val navSearch = PlaceSearchProvider(applicationContext).getInstance()
+			val navSearch = PlaceSearchProvider(applicationContext).getInstance(applicationContext)
 			val navTrigger = NavigationTriggerDeterminator(this.applicationContext)
 			val controller = NavigationSearchController(lifecycleScope, navParser, navSearch, navTrigger, viewModel)
 			controller.startNavigation(query.toString())

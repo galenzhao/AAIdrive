@@ -23,7 +23,7 @@ import me.hufman.androidautoidrive.phoneui.viewmodels.viewModels
 
 class NavigationPageFragment: Fragment() {
 	val viewModel by viewModels<NavigationStatusModel> { NavigationStatusModel.Factory(requireContext().applicationContext) }
-	val placeSearch by lazy { PlaceSearchProvider(requireContext()).getInstance() }
+	val placeSearch by lazy { PlaceSearchProvider(requireContext()).getInstance(requireContext().applicationContext) }
 	val filter by lazy { NavSearchFilter(placeSearch, viewModel.autocompleteResults) }
 	val adapter by lazy { DataBoundArrayAdapter(requireContext(), R.layout.navigation_listitem, viewModel.autocompleteResults, null, filter) }
 	val navParser by lazy { NavigationParser(AndroidGeocoderSearcher(requireContext().applicationContext), URLRedirector()) }

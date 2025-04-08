@@ -40,7 +40,7 @@ class MapQuickDestinationsFragment: Fragment() {
 	val destinationsAdapter by lazy { DataBoundListAdapter(destinations, R.layout.quickeditlist_listitem, controller) }
 
 	// autocomplete adapters
-	val placeSearch by lazy { PlaceSearchProvider(requireContext()).getInstance() }
+	val placeSearch by lazy { PlaceSearchProvider(requireContext()).getInstance(requireContext().applicationContext) }
 	val autocompleteResults = ArrayList<MapResultViewModel>()
 	val autocompleteFilter by lazy { MapQuickDestinationSearchFilter(placeSearch, autocompleteResults) }
 	val autocompleteAdapter by lazy { DataBoundArrayAdapter(requireContext(), R.layout.navigation_listitem, autocompleteResults, null, autocompleteFilter) }

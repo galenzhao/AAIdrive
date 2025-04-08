@@ -54,7 +54,7 @@ android {
         minSdkVersion 23
         // targetSdkVersion 33
 //        versionCode androidGitVersion.code() + 10401001 + 65535
-        versionCode 10999999
+        versionCode 99999999
         targetSdkVersion 34
         multiDexEnabled false
 //         versionCode androidGitVersion.code() + 1
