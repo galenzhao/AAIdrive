@@ -71,7 +71,7 @@ abstract class CarLocationProvider {
 	abstract fun stop()
 }
 
-class CdsLocationProvider(val cdsData: CDSData, val id4: Boolean): CarLocationProvider() {
+class CdsLocationProvider(val appSettings: AppSettings, val cdsData: CDSData, val id4: Boolean): CarLocationProvider() {
 	var currentLatLong: LatLong? = null
 	var currentHeading: CarHeading? = null
 
@@ -91,6 +91,11 @@ class CdsLocationProvider(val cdsData: CDSData, val id4: Boolean): CarLocationPr
 	}
 
 	override fun start() {
+		if(appSettings[AppSettings.KEYS.wgs84ToGcj02].toInt() > 10) {
+			this.wgs84ToGcj02 = true
+		}else{
+			this.wgs84ToGcj02 = false
+		}
 		cdsData.subscriptions[CDS.NAVIGATION.GPSPOSITION] = {
 			parseGPS()
 		}
@@ -181,6 +186,8 @@ class CombinedLocationProvider(val appSettings: AppSettings,
 		} else {
 			if(appSettings[AppSettings.KEYS.wgs84ToGcj02].toInt() > 10) {
 				carLocationProvider.wgs84ToGcj02 = true
+			}else{
+				carLocationProvider.wgs84ToGcj02 = false
 			}
 			carLocationProvider.start()
 		}
