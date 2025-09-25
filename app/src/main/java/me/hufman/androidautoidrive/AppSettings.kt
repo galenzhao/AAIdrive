@@ -52,6 +52,7 @@ interface AppSettings {
 		GMAPS_STYLE("GMaps_Style", "auto", "GMaps style"),
 		MAP_CUSTOM_STYLE("Mapbox_Custom_Style", "", "Mapbox custom style"),
 		MAPBOX_STYLE_URL("Mapbox_Style_Uri", "", "Mapbox style uri"),
+		AMAP_STYLE_URL("Amap_Style_Uri", "", "AMap style uri"),
 		AUDIO_SUPPORTS_USB("Audio_Supports_USB", (Build.VERSION.SDK_INT < Build.VERSION_CODES.O).toString(), "The phone is old enough to support USB accessory audio"),
 		AUDIO_FORCE_CONTEXT("Audio_Force_Context", "false", "Force audio context"),
 		AUDIO_DESIRED_APP("Audio_Desired_App", "", "Last music app that was playing"),

@@ -174,6 +174,11 @@ android {
             dimension "map"
             buildConfigField 'String', "MapboxAccessToken", '"' + (System.env.AndroidAutoIdrive_MapboxAccessToken ? System.env.AndroidAutoIdrive_MapboxAccessToken : AndroidAutoIdrive_MapboxAccessToken) + '"'
         }
+        amap {
+            dimension "map"
+            manifestPlaceholders = [amap_api_key: System.env.AndroidAutoIdrive_AmapApiKey ? System.env.AndroidAutoIdrive_AmapApiKey : AndroidAutoIdrive_AmapApiKey,
+                                    appAuthRedirectScheme: defaultConfig.applicationId]
+        }
         full {
             dimension "storefront"
         }
@@ -230,6 +235,17 @@ android {
         applicationVariants.all { variant ->
             if (variant.name.contains("mapbox")) {
                 tasks["assemble${variant.name.capitalize()}"].dependsOn assertMapboxKey
+            }
+        }
+
+        def assertAmapKey = tasks.create(name: "assertAmapKey") { doLast {
+            if ((System.env.AndroidAutoIdrive_AmapApiKey ? System.env.AndroidAutoIdrive_AmapApiKey : AndroidAutoIdrive_AmapApiKey) == "unset") {
+                throw new GradleException("Please configure an AMap API key in your gradle.properties\nSee https://lbs.amap.com/api/android-sdk/summary/")
+            }
+        }}
+        applicationVariants.all { variant ->
+            if (variant.name.contains("amap")) {
+                tasks["assemble${variant.name.capitalize()}"].dependsOn assertAmapKey
             }
         }
     }
@@ -343,6 +359,9 @@ dependencies {
         exclude group: 'com.mapbox.plugin', module: 'maps-overlay'        // not helpful in our case
         exclude group: 'com.mapbox.plugin', module: 'maps-viewport'       // we animate the camera manually
     }
+		amapImplementation 'com.amap.api:map2d:latest.integration'
+		amapImplementation 'com.amap.api:search:9.4.0'
+		amapImplementation 'com.amap.api:location:6.4.3'
 
     sentryImplementation 'io.sentry:sentry-android:1.7.16'
     sentryImplementation 'org.slf4j:slf4j-nop:1.7.25'

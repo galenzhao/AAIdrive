@@ -98,9 +98,11 @@
     <string name="lbl_map_buildings">激活 3D 建筑</string>
     <string name="gmapStyleLabel">地图风格</string>
     <string name="lbl_mapbox_custom_style">使用自定义Mapbox 样式url</string>
+    <string name="lbl_amap_custom_style">使用自定义高德地图样式url</string>
     <string name="lbl_map_quickdestinations">常用的的导航目的地：</string>
     <string name="lbl_gmap_invalid_apikey">GMaps API 密钥无效，地图功能将会被限制。请通知此错误给开发者并关注软件更新。</string>
     <string name="lbl_mapbox_invalid_token">Mapbox Token 密钥无效，地图功能将会被限制。请通知此错误给开发者并关注软件更新。</string>
+    <string name="lbl_amap_invalid_token">高德地图 API 密钥无效，地图功能将会被限制。请通知此错误给开发者并关注软件更新。</string>
     <string name="lbl_musicpage">您的手机音乐app可以选为车辆的音频源</string>
     <string name="lbl_music_apps">音乐 App</string>
     <string name="musicAppIcon">App 图标</string>

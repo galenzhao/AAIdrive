@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lbl_amap_custom_style">Use a custom AMap style url</string>
+    <string name="lbl_amap_invalid_token">The AMap API Key is invalid and map functionality will be reduced. Please notify the developer of this bug and watch for an update</string>
+</resources>

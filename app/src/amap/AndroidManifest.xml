@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="${amap_api_key}" />
+
+        <service android:name=".carapp.maps.MapAppService" android:exported="false">
+            <intent-filter>
+                <action android:name="me.hufman.androidautoidrive.carconnection.service" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
