@@ -102,6 +102,8 @@ android {
                     "src/main/res-facets/tips",
                     "src/main/res-facets/welcome",
             ]
+            // 配置native库路径
+            jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
 

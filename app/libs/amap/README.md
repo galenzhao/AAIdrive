@@ -2,17 +2,19 @@
 
 ## 目录结构
 ```
-app/libs/amap/
-├── README.md
-├── AMap3DMap_10.1.500_AMapNavi_10.1.500_AMapSearch_9.7.4_AMapLocation_6.5.0_20250814.jar  # 高德地图SDK合集
-├── arm64-v8a/                                   # ARM64架构的native库
-│   ├── libAMapSDK_NAVI_v10_1_500.so
-│   ├── libneonui_shared.so
-│   └── libneonuijni_public.so
-└── armeabi-v7a/                                 # ARMv7架构的native库
-    ├── libAMapSDK_NAVI_v10_1_500.so
-    ├── libneonui_shared.so
-    └── libneonuijni_public.so
+app/
+├── libs/amap/
+│   ├── README.md
+│   └── AMap3DMap_10.1.500_AMapNavi_10.1.500_AMapSearch_9.7.4_AMapLocation_6.5.0_20250814.jar  # 高德地图SDK合集
+└── src/main/jniLibs/                            # Native库文件位置（已自动复制）
+    ├── arm64-v8a/                               # ARM64架构的native库
+    │   ├── libAMapSDK_NAVI_v10_1_500.so
+    │   ├── libneonui_shared.so
+    │   └── libneonuijni_public.so
+    └── armeabi-v7a/                             # ARMv7架构的native库
+        ├── libAMapSDK_NAVI_v10_1_500.so
+        ├── libneonui_shared.so
+        └── libneonuijni_public.so
 ```
 
 ## 如何获取SDK文件
@@ -39,8 +41,22 @@ app/libs/amap/
 amapImplementation fileTree(dir: 'libs/amap', include: ['*.jar', '*.aar'])
 ```
 
+## Native库配置
+项目已配置为自动加载native库文件：
+```gradle
+sourceSets {
+    main {
+        // 配置native库路径
+        jniLibs.srcDirs = ['src/main/jniLibs']
+    }
+}
+```
+
 ## 注意事项
 1. 确保SDK版本配套，避免冲突
 2. 如果使用aar文件，需要确保包含所有依赖
 3. 可能需要添加ProGuard规则来避免混淆
 4. 记得在AndroidManifest.xml中配置API Key和权限
+5. **重要**: Native库文件(.so)必须放在`src/main/jniLibs`目录下，而不是`libs`目录
+6. 确保包含所有架构的native库文件（arm64-v8a, armeabi-v7a等）
+7. 如果遇到"UnsatisfiedLinkError"错误，检查native库文件是否正确放置
