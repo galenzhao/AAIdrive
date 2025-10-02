@@ -1,5 +1,11 @@
 # 高德地图SDK本地文件配置
 
+## 架构说明
+项目现在完全使用高德地图导航SDK (`com.amap.api.navi`) 实现地图显示和导航功能：
+- **AmapNaviController**: 导航控制器，管理导航逻辑
+- **AmapNaviProjection**: 导航视图投影，使用AMapNaviView显示地图
+- **AmapController**: 主控制器，协调各个组件
+
 ## 目录结构
 ```
 app/
@@ -52,6 +58,14 @@ sourceSets {
 }
 ```
 
+## 功能特性
+- ✅ **完整导航功能**: 使用AMapNaviView提供专业的导航界面
+- ✅ **语音播报**: 内置语音提示功能
+- ✅ **路线规划**: 支持多种路线策略
+- ✅ **实时导航**: 支持GPS导航和模拟导航
+- ✅ **地图显示**: 3D地图显示，支持多种地图样式
+- ✅ **本地文件**: 使用本地SDK文件，无需网络下载
+
 ## 注意事项
 1. 确保SDK版本配套，避免冲突
 2. 如果使用aar文件，需要确保包含所有依赖
@@ -60,3 +74,4 @@ sourceSets {
 5. **重要**: Native库文件(.so)必须放在`src/main/jniLibs`目录下，而不是`libs`目录
 6. 确保包含所有架构的native库文件（arm64-v8a, armeabi-v7a等）
 7. 如果遇到"UnsatisfiedLinkError"错误，检查native库文件是否正确放置
+8. **架构简化**: 已删除旧的RouteSearch实现，现在完全使用AMapNaviView
