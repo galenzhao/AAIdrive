@@ -6,9 +6,9 @@ import android.location.Location
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.amap.api.maps2d.CameraUpdateFactory
-import com.amap.api.maps2d.model.CameraPosition
-import com.amap.api.maps2d.model.LatLng
+import com.amap.api.maps.CameraUpdateFactory
+import com.amap.api.maps.model.CameraPosition
+import com.amap.api.maps.model.LatLng
 import me.hufman.androidautoidrive.AppSettingsObserver
 import me.hufman.androidautoidrive.maps.CarLocationProvider
 import me.hufman.androidautoidrive.maps.LatLong
@@ -29,10 +29,7 @@ class AmapController(private val context: Context,
 	var handler = Handler(Looper.getMainLooper())
 	var projection: AmapProjection? = null
 
-	val navController = AmapNavController.getInstance(context, carLocationProvider) {
-		drawNavigation()
-		mapAppMode.currentNavDestination = it.currentNavDestination
-	}
+	val navController = AmapNaviController(context, carLocationProvider, virtualDisplay, appSettings, mapAppMode)
 	private val amapLocationSource = AmapLocationSource()
 	var currentLocation: Location? = null
 
@@ -68,39 +65,12 @@ class AmapController(private val context: Context,
 		// cancel a shutdown timer
 		handler.removeCallbacks(shutdownMapRunnable)
 
-		if (projection == null) {
-			Log.i(TAG, "First showing of the map")
-			this.projection = AmapProjection(context, virtualDisplay.display, appSettings, amapLocationSource).apply {
-				mapListener = Runnable {
-					drawNavigation()
-				}
-			}
-		}
-
-		if (projection?.isShowing == false) {
-			projection?.show()
-		}
-
-		drawNavigation()
-
-		// nudge the camera to trigger a redraw, in case we changed windows
-		if (!animatingCamera) {
-			projection?.map?.animateCamera(CameraUpdateFactory.scrollBy(1f, 1f))
-		}
-		// register for location updates
-		carLocationProvider.start()
-
-		// watch for map settings
-		appSettings.callback = {applySettings()}
-		applySettings(force = true) // which also updates the settings in the projection for first draw
+		// Use the new navigation controller
+		navController.showMap()
 	}
 
 	override fun pauseMap() {
-		carLocationProvider.stop()
-
-		handler.postDelayed(shutdownMapRunnable, SHUTDOWN_WAIT_INTERVAL)
-
-		appSettings.callback = null
+		navController.pauseMap()
 	}
 	private val shutdownMapRunnable = Runnable {
 		Log.i(TAG, "Shutting down AmapProjection due to inactivity of ${SHUTDOWN_WAIT_INTERVAL}ms")
@@ -173,79 +143,15 @@ class AmapController(private val context: Context,
 	override fun navigateTo(dest: LatLong) {
 		mapAppMode.startInteraction(NAVIGATION_MAP_STARTZOOM_TIME + 4000)
 		navController.navigateTo(dest)
-		animateNavigation()
 	}
 
 	override fun recalcNavigation() {
-		navController.currentNavDestination?.let {
-			navController.navigateTo(it)
-		}
+		navController.recalcNavigation()
 	}
 
 	override fun stopNavigation() {
 		navController.stopNavigation()
 	}
 
-	private fun animateNavigation() {
-		// show a camera animation to zoom out to the whole navigation route
-		val dest = navController.currentNavDestination ?: return
-		val startLocation = currentLocation ?: return
-		// zoom out to the full view
-		val startPoint = LatLng(startLocation.latitude, startLocation.longitude)
-		val destPoint = LatLng(dest.latitude, dest.longitude)
-
-		val currentCamera = projection?.map?.cameraPosition
-		if (currentCamera == null) return
-
-		// Calculate bounds to fit both points
-		val bounds = com.amap.api.maps2d.model.LatLngBounds.Builder()
-				.include(startPoint)
-				.include(destPoint)
-				.build()
-
-		animatingCamera = true
-		handler.postDelayed({
-			val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100)
-			try {
-				projection?.map?.animateCamera(cameraUpdate)
-			} catch (e: Exception) {
-				// sometimes AMap crashes here?
-			}
-		}, 100)
-
-		// then zoom back in to the user's chosen zoom
-		handler.postDelayed({
-			animatingCamera = false
-			val location = currentLocation ?: return@postDelayed
-			val cameraPosition = CameraPosition.Builder()
-					.target(LatLng(location.latitude, location.longitude))
-					.zoom(currentZoom)
-			if (location.hasBearing() && currentSettings.mapTilt) {
-				cameraPosition
-						.tilt(60f)
-						.bearing(location.bearing)
-			} else {
-				cameraPosition
-						.tilt(0f)
-						.bearing(0f)
-			}
-			try {
-				projection?.map?.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition.build()))
-			} catch (e: Exception) {
-				// sometimes AMap crashes here?
-			}
-		}, NAVIGATION_MAP_STARTZOOM_TIME.toLong())
-	}
-
-	private fun drawNavigation() {
-		// make sure we are in the UI thread, and then draw navigation lines onto it
-		// because route search comes back on a network thread
-		if (Looper.myLooper() != handler.looper) {
-			handler.post {
-				projection?.drawNavigation(navController)
-			}
-		} else {
-			projection?.drawNavigation(navController)
-		}
-	}
+	// Navigation is now handled by AMapNaviView, so these methods are no longer needed
 }

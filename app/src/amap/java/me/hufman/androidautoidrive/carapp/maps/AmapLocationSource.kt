@@ -1,7 +1,7 @@
 package me.hufman.androidautoidrive.carapp.maps
 
 import android.location.Location
-import com.amap.api.maps2d.model.LatLng
+import com.amap.api.maps.model.LatLng
 
 class AmapLocationSource {
 	private var listener: ((Location) -> Unit)? = null

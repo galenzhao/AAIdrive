@@ -19,14 +19,21 @@ fun LatLong.toLatLonPoint(): LatLonPoint {
 
 class AmapNavController(val routeSearch: RouteSearch, val locationProvider: CarLocationProvider, val callback: (AmapNavController) -> Unit) {
 	companion object {
+		private const val TAG = "AmapNavController"
 		fun getInstance(context: Context, locationProvider: CarLocationProvider, callback: (AmapNavController) -> Unit): AmapNavController {
 			// Initialize AMap privacy compliance
 			AMapLocationClient.updatePrivacyShow(context, true, true)
 			AMapLocationClient.updatePrivacyAgree(context, true)
 			
 			val routeSearch = RouteSearch(context)
-			return AmapNavController(routeSearch, locationProvider, callback)
+			return AmapNavController(routeSearch, locationProvider, callback, context)
 		}
+	}
+
+	private lateinit var voiceService: AmapVoiceService
+
+	constructor(routeSearch: RouteSearch, locationProvider: CarLocationProvider, callback: (AmapNavController) -> Unit, context: Context) : this(routeSearch, locationProvider, callback) {
+		voiceService = AmapVoiceService(context)
 	}
 
 	var currentNavDestination: LatLong? = null
@@ -40,7 +47,10 @@ class AmapNavController(val routeSearch: RouteSearch, val locationProvider: CarL
 
 		val currentLocation = locationProvider.currentLocation
 		if (currentLocation == null) {
-			Log.w(TAG, "No car location yet, cancelling route search")
+			Log.w(TAG, "No car location yet, using Dalian, China as default location")
+			// 大连市坐标: 38.914003, 121.614682
+			val defaultLocation = LatLong(38.914003, 121.614682)
+			routeNavigation(defaultLocation, dest)
 			return
 		}
 		routeNavigation(LatLong(currentLocation.latitude, currentLocation.longitude), dest)
@@ -50,7 +60,16 @@ class AmapNavController(val routeSearch: RouteSearch, val locationProvider: CarL
 		Log.i(TAG, "Stopping navigation")
 		currentNavDestination = null
 		currentNavRoute = null
+		voiceService.speak("导航已停止")
 		callback(this)
+	}
+
+	fun speakNavigationInstruction(instruction: String) {
+		voiceService.speak(instruction)
+	}
+
+	fun destroy() {
+		voiceService.shutdown()
 	}
 
 	private fun routeNavigation(start: LatLong, dest: LatLong) {
@@ -62,9 +81,19 @@ class AmapNavController(val routeSearch: RouteSearch, val locationProvider: CarL
 				if (errorCode == AMapException.CODE_AMAP_SUCCESS && result != null && result.paths.isNotEmpty()) {
 					currentNavRoute = result
 					Log.i(TAG, "Found route with ${result.paths.size} paths")
+					
+					// 语音播报路线规划成功
+					val path = result.paths[0]
+					val distance = path.distance / 1000.0 // 转换为公里
+					val duration = path.duration / 60.0 // 转换为分钟
+					val voiceText = "路线规划成功，距离${String.format("%.1f", distance)}公里，预计用时${String.format("%.0f", duration)}分钟"
+					voiceService.speak(voiceText)
+					
 					callback(this@AmapNavController)
 				} else {
 					Log.w(TAG, "Failed to find route! Error code: $errorCode")
+					// 语音播报路线规划失败
+					voiceService.speak("路线规划失败，请检查网络连接或重新选择目的地")
 				}
 			}
 
