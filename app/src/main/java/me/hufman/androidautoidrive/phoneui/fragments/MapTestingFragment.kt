@@ -25,7 +25,7 @@ import me.hufman.androidautoidrive.phoneui.viewmodels.viewModels
 
 class MapTestingFragment: Fragment() {
 	private val viewModel by viewModels<MapTestingModel>()
-	val placeSearch by lazy { PlaceSearchProvider(requireContext()).getInstance() }
+	val placeSearch by lazy { PlaceSearchProvider(requireContext()).getInstance(requireContext().applicationContext) }
 	val locationAutocompleteFilter by lazy { NavSearchFilter(placeSearch, viewModel.locationAutocompleteResults) }
 	val locationAutocompleteAdapter by lazy {
 		DataBoundArrayAdapter(requireContext(), R.layout.navigation_listitem, viewModel.locationAutocompleteResults, null, locationAutocompleteFilter)
