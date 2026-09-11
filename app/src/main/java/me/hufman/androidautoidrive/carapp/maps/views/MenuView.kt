@@ -147,12 +147,14 @@ class MenuView(val state: RHMIState, val interaction: MapInteractionController, 
 				resultsView.startFavoriteDestination(stored)
 				stateMap.id
 			} else {
-				val location = MapQuickDestination.parseLocation(stored)
+				val parsed = MapQuickDestination.parse(stored)
+				val location = parsed.location
 				if (location != null) {
-					val name = MapQuickDestination.displayName(stored).takeIf { label ->
-						label.isNotBlank() && MapQuickDestination.parseLocation(label) == null
-					}
-					interaction.navigateTo(location, name, null)
+					interaction.navigateTo(
+						location,
+						parsed.name.takeIf { it.isNotBlank() },
+						parsed.id.ifBlank { null },
+					)
 				} else {
 					stayOnMenu()
 					throw RHMIActionAbort()

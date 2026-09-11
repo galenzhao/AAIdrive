@@ -7,9 +7,11 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.AutoCompleteTextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.launch
 import me.hufman.androidautoidrive.AppSettings
 import me.hufman.androidautoidrive.MutableAppSettingsReceiver
 import me.hufman.androidautoidrive.R
@@ -18,6 +20,7 @@ import me.hufman.androidautoidrive.databinding.MapQuickDestinationsBinding
 import me.hufman.androidautoidrive.maps.MapPlaceSearch
 import me.hufman.androidautoidrive.maps.MapQuickDestination
 import me.hufman.androidautoidrive.maps.PlaceSearchProvider
+import me.hufman.androidautoidrive.maps.resolveNavigable
 import me.hufman.androidautoidrive.phoneui.adapters.DataBoundArrayAdapter
 import me.hufman.androidautoidrive.phoneui.adapters.DataBoundListAdapter
 import me.hufman.androidautoidrive.phoneui.adapters.ReorderableItemsCallback
@@ -55,9 +58,11 @@ class MapQuickDestinationsFragment: Fragment() {
 		val autocomplete = binding.root.findViewById<AutoCompleteTextView>(R.id.txtInput)
 		autocomplete.setAdapter(autocompleteAdapter)
 		autocomplete.onItemClickListener = AdapterView.OnItemClickListener { adapterView, _, index, _ ->
-			val item = adapterView.getItemAtPosition(index) as? MapResultViewModel
-			item?.also {
-				controller.currentInput.value = MapQuickDestination.format(it.result)
+			val item = adapterView.getItemAtPosition(index) as? MapResultViewModel ?: return@OnItemClickListener
+			// Enrich blank poiId (common for Inputtips) before persisting durable fields.
+			viewLifecycleOwner.lifecycleScope.launch {
+				val navigable = placeSearch.resolveNavigable(item.result) ?: item.result
+				controller.currentInput.value = MapQuickDestination.format(navigable)
 				controller.addItem()
 			}
 		}
