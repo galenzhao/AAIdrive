@@ -13,7 +13,6 @@ import android.view.Display
 import android.view.View
 import android.view.WindowManager
 import kotlin.math.roundToInt
-import cn.hutool.core.util.CoordinateUtil
 import com.amap.api.location.AMapLocation
 import com.amap.api.location.AMapLocationClient
 import com.amap.api.navi.*
@@ -36,6 +35,7 @@ import me.hufman.androidautoidrive.R
 import me.hufman.androidautoidrive.maps.CarLocationProvider
 import me.hufman.androidautoidrive.maps.LatLong
 import me.hufman.androidautoidrive.maps.SimulatedCarLocation
+import me.hufman.androidautoidrive.maps.toGcj02
 
 @SuppressLint("Lifecycle")
 class AmapNaviProjection(
@@ -48,6 +48,8 @@ class AmapNaviProjection(
 
     companion object {
         private const val TAG = "AmapNaviProjection"
+        // give up on a route calculation that never calls back, so the route list doesn't spin forever
+        private const val ROUTE_TIMEOUT_MS = 20000L
     }
 
     val naviView: AMapNaviView by lazy { findViewById(R.id.naviView) }
@@ -90,6 +92,22 @@ class AmapNaviProjection(
             Log.w(TAG, "Timed out waiting for second route callback, publishing empty routes")
             publishCalculatedRoutes(intArrayOf(), allowEmpty = true)
         }
+    }
+    private val routeTimeoutRunnable = Runnable {
+        if (!routesPublished) {
+            failPendingRoute("Route calculation did not finish within ${ROUTE_TIMEOUT_MS}ms")
+        }
+    }
+
+    private fun startRouteTimeout() {
+        handler.removeCallbacks(routeTimeoutRunnable)
+        handler.postDelayed(routeTimeoutRunnable, ROUTE_TIMEOUT_MS)
+    }
+
+    private fun failPendingRoute(reason: String) {
+        Log.w(TAG, "$reason, publishing empty routes")
+        pendingDestination = null
+        publishCalculatedRoutes(intArrayOf(), allowEmpty = true, force = true)
     }
 
     private fun postTryStartRoute() {
@@ -263,6 +281,8 @@ class AmapNaviProjection(
         autoStartAfterCalc = false
         routesPublished = false
         awaitingSecondRouteCallback = false
+        applySettings(AmapSettings.build(appSettings, locationProvider.currentLocation?.toLatLong()), force = true)
+        startRouteTimeout()
         locationProvider.start()
         ensureNavi()
         postTryStartRoute()
@@ -276,6 +296,7 @@ class AmapNaviProjection(
         autoStartAfterCalc = true
         routesPublished = false
         awaitingSecondRouteCallback = false
+        startRouteTimeout()
         locationProvider.start()
         ensureNavi()
         postTryStartRoute()
@@ -301,6 +322,8 @@ class AmapNaviProjection(
         autoStartAfterCalc = false
         routesPublished = false
         awaitingSecondRouteCallback = false
+        handler.removeCallbacks(routeTimeoutRunnable)
+        handler.removeCallbacks(secondRouteTimeoutRunnable)
         try {
             // startNavi can run before onStartNavi flips isNavigating; still stop the engine.
             if (shouldStop) {
@@ -311,6 +334,44 @@ class AmapNaviProjection(
         }
         isNavigating = false
         currentDestination = null
+        // stopNavi freezes guidance updates but leaves the navi chrome/route on screen
+        resetIdleMap()
+    }
+
+    /** Drop frozen guidance UI and return the capture surface to a free map. */
+    private fun resetIdleMap() {
+        try {
+            naviView.setShowMode(3) // 普通态 — unlock car-follow framing
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set idle show mode", e)
+        }
+        try {
+            naviView.setRouteMarkerVisible(false, false, false)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to hide route markers", e)
+        }
+        try {
+            // clear() removes route overlays; reInit restores AMapNaviView's car overlay after clear
+            naviView.map?.clear()
+            naviView.reInit(null)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear navi map overlays", e)
+        }
+        applySettings(AmapSettings.build(appSettings, locationProvider.currentLocation?.toLatLong()), force = true)
+        disableAmapPhoneGps()
+        try {
+            val origin = locationProvider.currentLocation ?: SimulatedCarLocation.create()
+            val amap = toAmapLocation(origin)
+            naviView.map?.animateCamera(
+                com.amap.api.maps.CameraUpdateFactory.newLatLngZoom(
+                    com.amap.api.maps.model.LatLng(amap.latitude, amap.longitude),
+                    16f
+                )
+            )
+            feedExtraGps(origin)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to recenter idle map", e)
+        }
     }
 
     private fun tryStartRoute() {
@@ -325,8 +386,13 @@ class AmapNaviProjection(
         }
         val amapOrigin = toAmapLocation(origin)
         try {
-            startRouteCalculation(LatLong(amapOrigin.latitude, amapOrigin.longitude), toAmapLatLong(dest))
+            // destinations come from AMap search or favorites saved from it, so they are already GCJ-02
+            val submitted = startRouteCalculation(LatLong(amapOrigin.latitude, amapOrigin.longitude), dest)
             pendingDestination = null
+            if (!submitted) {
+                // no calculation callback will arrive
+                failPendingRoute("AMap did not accept the route calculation")
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to submit route calculation, will retry when navi is ready", e)
         }
@@ -369,11 +435,10 @@ class AmapNaviProjection(
 
     private fun toAmapLocation(location: Location): Location {
         val amapLocation = Location(location)
-        if (!CoordinateUtil.outOfChina(location.longitude, location.latitude) && locationProvider.wgs84ToGcj02) {
-            val coord = CoordinateUtil.wgs84ToGcj02(location.longitude, location.latitude)
-            amapLocation.latitude = coord.lat
-            amapLocation.longitude = coord.lng
-        }
+        // CdsLocationProvider always provides WGS-84, AMap expects GCJ-02
+        val gcj02 = location.toLatLong().toGcj02()
+        amapLocation.latitude = gcj02.latitude
+        amapLocation.longitude = gcj02.longitude
         if (amapLocation.time == 0L) {
             amapLocation.time = System.currentTimeMillis()
         }
@@ -383,15 +448,8 @@ class AmapNaviProjection(
         return amapLocation
     }
 
-    private fun toAmapLatLong(latLong: LatLong): LatLong {
-        if (!CoordinateUtil.outOfChina(latLong.longitude, latLong.latitude) && locationProvider.wgs84ToGcj02) {
-            val coord = CoordinateUtil.wgs84ToGcj02(latLong.longitude, latLong.latitude)
-            return LatLong(coord.lat, coord.lng)
-        }
-        return latLong
-    }
-
-    private fun startRouteCalculation(start: LatLong, dest: LatLong) {
+    /** Returns whether AMap accepted the calculation, otherwise no callback will arrive */
+    private fun startRouteCalculation(start: LatLong, dest: LatLong): Boolean {
         val startLatLng = NaviLatLng(start.latitude, start.longitude)
         val endLatLng = NaviLatLng(dest.latitude, dest.longitude)
 
@@ -428,19 +486,21 @@ class AmapNaviProjection(
             Log.w(TAG, "Failed to convert navi strategy", e)
         }
         Log.i(TAG, "Calculating multiple routes congestion=$avoidCongestion avoidHighway=$avoidHighway avoidCost=$avoidCost preferHighway=$preferHighway")
-        mAMapNavi.calculateDriveRoute(startList, endList, null, strategy)
+        return mAMapNavi.calculateDriveRoute(startList, endList, null, strategy)
     }
 
-    fun applySettings(settings: AmapSettings) {
+    fun applySettings(settings: AmapSettings, force: Boolean = false) {
+        // called on every car location update, so skip unless something changed
+        if (!force && settings == lastSettings) {
+            return
+        }
+        lastSettings = settings
         try {
             naviWrapper.setPadding(0, 0, 0, 0)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to apply navi view settings", e)
         }
-        if (lastSettings != settings) {
-            lastSettings = settings
-            applyNaviViewOptions(settings)
-        }
+        applyNaviViewOptions(settings)
         try {
             val map = naviView.map
             map?.isMyLocationEnabled = false
@@ -466,20 +526,23 @@ class AmapNaviProjection(
             val options = naviView.viewOptions ?: AMapNaviViewOptions()
             options.setSensorEnable(false)
             options.setSettingMenuEnabled(false)
-            options.setLayoutVisible(settings.layout)
-            options.setLaneInfoShow(settings.laneInfo)
-            options.setRealCrossDisplayShow(settings.crossView)
-            options.setModeCrossDisplayShow(settings.crossView)
-            options.setTrafficBarEnabled(settings.trafficBar)
+            // Draw routes while planning or guiding; turn-by-turn chrome only while actively navigating
+            val planningOrGuiding = isNavigating || currentDestination != null || pendingDestination != null || naviStartRequested
+            options.setLayoutVisible(settings.layout && isNavigating)
+            options.setAutoDrawRoute(planningOrGuiding)
+            options.setLaneInfoShow(settings.laneInfo && isNavigating)
+            options.setRealCrossDisplayShow(settings.crossView && isNavigating)
+            options.setModeCrossDisplayShow(settings.crossView && isNavigating)
+            options.setTrafficBarEnabled(settings.trafficBar && isNavigating)
             options.setCompassEnabled(settings.compass)
-            options.setAutoLockCar(settings.lockCar)
-            options.setAutoChangeZoom(settings.autoZoom)
-            options.setCameraBubbleShow(settings.cameras)
-            options.setCameraInfoUpdateEnabled(settings.cameras)
-            options.setTrafficLine(settings.trafficLine)
+            options.setAutoLockCar(settings.lockCar && isNavigating)
+            options.setAutoChangeZoom(settings.autoZoom && isNavigating)
+            options.setCameraBubbleShow(settings.cameras && isNavigating)
+            options.setCameraInfoUpdateEnabled(settings.cameras && isNavigating)
+            options.setTrafficLine(settings.trafficLine && planningOrGuiding)
             options.setTrafficLayerEnabled(settings.mapTraffic)
-            options.setEagleMapVisible(settings.eagle)
-            options.setNaviArrowVisible(settings.naviArrow)
+            options.setEagleMapVisible(settings.eagle && isNavigating)
+            options.setNaviArrowVisible(settings.naviArrow && isNavigating)
             options.setAutoNaviViewNightMode(settings.nightAuto)
             options.setNaviNight(if (settings.nightAuto) !settings.mapDaytime else settings.night)
             options.setTilt(if (settings.mapTilt) 45 else 0)
@@ -529,6 +592,8 @@ class AmapNaviProjection(
     override fun onStartNavi(type: Int) {
         Log.i(TAG, "Navigation started, type: $type")
         isNavigating = true
+        // Restore guidance chrome / auto-drawn route now that navi is active
+        applySettings(AmapSettings.build(appSettings, locationProvider.currentLocation?.toLatLong()), force = true)
     }
 
     override fun onTrafficStatusUpdate() {
@@ -626,17 +691,22 @@ class AmapNaviProjection(
         Log.i(TAG, "Emulator navigation ended")
         emulatorNavi = false
         isNavigating = false
+        naviStartRequested = false
         currentDestination = null
         mapAppMode.currentNavDestination = null
         mapAppMode.finishRouteSelection()
+        resetIdleMap()
     }
 
     override fun onArriveDestination() {
         Log.i(TAG, "Arrived at destination")
         isNavigating = false
+        naviStartRequested = false
+        emulatorNavi = false
         currentDestination = null
         mapAppMode.currentNavDestination = null
         mapAppMode.finishRouteSelection()
+        resetIdleMap()
     }
 
     override fun onCalculateRouteSuccess(result: AMapCalcRouteResult?) {
@@ -649,7 +719,8 @@ class AmapNaviProjection(
         publishCalculatedRoutes(intArrayOf(), allowEmpty = true)
     }
 
-    private fun publishCalculatedRoutes(ids: IntArray, allowEmpty: Boolean) {
+    /** @param force publish right away, without waiting for the second route callback */
+    private fun publishCalculatedRoutes(ids: IntArray, allowEmpty: Boolean, force: Boolean = false) {
         if (routesPublished) {
             return
         }
@@ -671,7 +742,7 @@ class AmapNaviProjection(
                     path.tollCost
             ))
         }
-        if (choices.isEmpty()) {
+        if (choices.isEmpty() && !force) {
             if (!awaitingSecondRouteCallback) {
                 awaitingSecondRouteCallback = true
                 Log.w(TAG, "Route callback before navi paths were ready, waiting for the other callback")
@@ -684,19 +755,21 @@ class AmapNaviProjection(
             }
         }
         handler.removeCallbacks(secondRouteTimeoutRunnable)
+        handler.removeCallbacks(routeTimeoutRunnable)
         awaitingSecondRouteCallback = false
         routesPublished = true
-        val requested = mapAppMode.completePendingRoutes(choices)
-        if (autoStartAfterCalc || !requested) {
-            autoStartAfterCalc = false
-            if (choices.isNotEmpty()) {
-                try {
-                    mAMapNavi.selectRouteId(choices[0].routeId)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to select default route", e)
-                }
-                startActiveNavi()
+        val delivery = mapAppMode.completePendingRoutes(choices)
+        val autoStart = autoStartAfterCalc || delivery == RouteDelivery.NOT_REQUESTED
+        autoStartAfterCalc = false
+        if (delivery == RouteDelivery.CANCELLED) {
+            Log.i(TAG, "Route selection was cancelled, not starting navigation")
+        } else if (autoStart && choices.isNotEmpty()) {
+            try {
+                mAMapNavi.selectRouteId(choices[0].routeId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to select default route", e)
             }
+            startActiveNavi()
         }
     }
 

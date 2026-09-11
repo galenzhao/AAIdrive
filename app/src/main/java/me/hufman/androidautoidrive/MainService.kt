@@ -99,7 +99,9 @@ class MainService: Service() {
 			// schedule as long as the car is connected
 			if (btStatus.isA2dpConnected) {
 				AppSettings.loadSettings(applicationContext)
-				handler.postDelayed(btfetchUuidsWithSdp, appSettings[AppSettings.KEYS.BTFETCHUUIDSWITHSDP].toLong())
+				val interval = appSettings[AppSettings.KEYS.BTFETCHUUIDSWITHSDP].trim().toLongOrNull()
+						?.coerceIn(1000, 600000) ?: 5000
+				handler.postDelayed(btfetchUuidsWithSdp, interval)
 			}
 		}
 	} }
@@ -212,7 +214,7 @@ class MainService: Service() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID,
 					getString(R.string.notification_channel_connection),
-					NotificationManager.IMPORTANCE_HIGH)
+					NotificationManager.IMPORTANCE_LOW)
 
 			val notificationManager = getSystemService(NotificationManager::class.java)
 			notificationManager.createNotificationChannel(channel)

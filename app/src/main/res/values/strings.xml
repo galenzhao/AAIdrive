@@ -129,7 +129,7 @@
     <string name="lbl_amap_emulator_speed_hint">km/h for simulated/emulator navigation. 10–200, default 80. Applies the next time navi starts.</string>
     <string name="hint_amap_emulator_speed">80</string>
     <string name="lbl_amap_select_route">Choose route before starting</string>
-    <string name="lbl_amap_wgs84_gcj02">Convert WGS84 to GCJ-02</string>
+    <string name="lbl_amap_wgs84_gcj02">Car GPS reports GCJ-02 coordinates</string>
     <string name="lbl_amap_night_auto">Auto night navi UI</string>
     <string name="lbl_amap_night">Night navi UI</string>
     <string name="lbl_amap_layout">Show navi HUD</string>

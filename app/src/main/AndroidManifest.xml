@@ -38,6 +38,8 @@
         android:protectionLevel="dangerous"/>
 
     <queries>
+        <!-- Torque OBD plugin service, see CarInformationDiscoveryService -->
+        <package android:name="org.prowl.torque" />
         <!-- Search for MediaBrowserService -->
         <intent>
             <action android:name="android.media.browse.MediaBrowserService" />
@@ -1165,7 +1167,5 @@
         <meta-data
             android:name="com.spotify.music.API_KEY"
             android:value="${spotify_api_key}" />
-        <meta-data android:name="io.sentry.traces.profiling.sample-rate" android:value="1.0" />
-        <meta-data android:name="io.sentry.traces.sample-rate" android:value="1.0" />
     </application>
 </manifest>

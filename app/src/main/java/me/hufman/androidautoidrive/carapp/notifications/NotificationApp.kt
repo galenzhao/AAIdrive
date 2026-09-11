@@ -422,6 +422,10 @@ class NotificationApp(val iDriveConnectionStatus: IDriveConnectionStatus, val se
 				if (notificationSettings.shouldPlaySound()) {
 					val handler = popupAutoCloser?.handler
 					if (handler == null) {
+						// no car thread to schedule on, play without waiting for the duck fade
+						audioPlayer.requestDuck()
+						audioPlayer.playRingtone(sbn.soundUri)
+						audioPlayer.releaseDuck()
 						readoutInteractions.triggerPopupReadout(sbn)
 					} else {
 						notificationApp.cancelPendingSoundWork()

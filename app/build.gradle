@@ -52,12 +52,21 @@ android {
         applicationId "me.hufman.androidautoidrive"
         compileSdk 34
         minSdkVersion 23
-        // targetSdkVersion 33
-//        versionCode androidGitVersion.code() + 10401001 + 65535
-        versionCode 99999999
+        // AndroidAutoIdrive_VersionCode overrides the versionCode
+        // otherwise it comes from the latest vMAJOR.MINOR.PATCH git tag, and date-style tags such as
+        // v20240912 don't fit codeFormat, so fall back to a code that installs over any release
+        def gitVersionCode = { ->
+            try {
+                return androidGitVersion.code() + 1
+            } catch (Exception e) {
+                logger.warn("Could not compute versionCode from git tags (${e.message}), using 99999999")
+                return 99999999
+            }
+        }
+        def versionCodeOverride = System.env.AndroidAutoIdrive_VersionCode ?: project.findProperty("AndroidAutoIdrive_VersionCode")
+        versionCode = versionCodeOverride ? versionCodeOverride.toString().toInteger() : gitVersionCode()
         targetSdkVersion 34
         multiDexEnabled false
-//         versionCode androidGitVersion.code() + 1
         versionName androidGitVersion.name()
 //        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunner 'me.hufman.androidautoidrive.DexOpenerAndroidJUnitRunner'
@@ -102,8 +111,7 @@ android {
                     "src/main/res-facets/tips",
                     "src/main/res-facets/welcome",
             ]
-            // 配置native库路径
-            jniLibs.srcDirs = ['src/main/jniLibs']
+            // AMap native libraries live in src/amap/jniLibs, so only the amap flavor packages them
         }
     }
 

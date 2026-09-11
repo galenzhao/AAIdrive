@@ -86,7 +86,7 @@ class AmapNaviController(
 
     private fun applySettings(force: Boolean = false) {
         val newSettings = AmapSettings.build(appSettings, currentLocation?.toLatLong())
-        projection?.applySettings(newSettings)
+        projection?.applySettings(newSettings, force)
     }
 
     override fun zoomIn(steps: Int) {

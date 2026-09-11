@@ -37,7 +37,8 @@ class BrowsePageView(val state: RHMIState,
 	// remember to clear it when a new previouslySelected is set
 	var oldPreviouslySelectedIndex: Int? = null
 
-	private val rhmiDispatcher = Handler(Looper.myLooper() ?: Looper.getMainLooper()).asCoroutineDispatcher()
+	// run RHMI updates on the car thread that built this view, if it has a Looper
+	private val rhmiDispatcher: CoroutineDispatcher = Looper.myLooper()?.let { Handler(it).asCoroutineDispatcher() } ?: Dispatchers.IO
 
 	override val coroutineContext: CoroutineContext
 		get() = rhmiDispatcher + CarThreadExceptionHandler

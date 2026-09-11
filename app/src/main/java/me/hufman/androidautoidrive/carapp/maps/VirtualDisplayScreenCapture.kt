@@ -30,6 +30,9 @@ data class StaticScreenCaptureConfig(override val maxWidth: Int,
  */
 class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfig: Bitmap.Config, val screenCaptureConfig: ScreenCaptureConfig) {
 	companion object {
+		// the menu preview and the fullscreen map alternate, so keep both resize buffers around
+		private const val RESIZE_CACHE_SIZE = 3
+
 		fun build(config: ScreenCaptureConfig): VirtualDisplayScreenCapture {
 			return VirtualDisplayScreenCapture(
 					ImageReader.newInstance(config.maxWidth, config.maxHeight, PixelFormat.RGBA_8888, 2),
@@ -49,6 +52,11 @@ class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfi
 
 	}
 
+	// guards the ImageReader and bitmaps, because the car thread reads frames
+	// while onCarStop may tear everything down from another thread
+	private val lock = Any()
+	@Volatile private var destroyed = false
+
 	/** Prepares an ImageReader, and sends JPG-compressed images to a callback */
 	private val origRect = Rect(0, 0, imageCapture.width, imageCapture.height)    // the full size of the main map
 	private var sourceRect = Rect(0, 0, imageCapture.width, imageCapture.height)    // the capture region from the main map
@@ -57,17 +65,33 @@ class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfi
 	private var resizedBitmap = Bitmap.createBitmap(imageCapture.width, imageCapture.height, bitmapConfig)
 	private var resizedCanvas = Canvas(resizedBitmap)
 	private var resizedRect = Rect(0, 0, resizedBitmap.width, resizedBitmap.height) // draw to the full region of the resize canvas
+	private val resizedBitmaps = HashMap<Pair<Int, Int>, Bitmap>().apply {
+		this[resizedBitmap.width to resizedBitmap.height] = resizedBitmap
+	}
 	private val outputFile = ByteArrayOutputStream()
 
 
 	fun registerImageListener(listener: ImageReader.OnImageAvailableListener?) {
-		this.imageCapture.setOnImageAvailableListener(listener, Handler(Looper.getMainLooper()))
+		synchronized(lock) {
+			if (destroyed) return
+			this.imageCapture.setOnImageAvailableListener(listener, Handler(Looper.getMainLooper()))
+		}
 	}
 
 	fun changeImageSize(width: Int, height: Int) {
-		synchronized(this) {
-			resizedBitmap = Bitmap.createBitmap(width, height, bitmapConfig)
-			resizedCanvas = Canvas(resizedBitmap)
+		synchronized(lock) {
+			if (destroyed) return
+			val key = width to height
+			val target = resizedBitmaps[key] ?: Bitmap.createBitmap(width, height, bitmapConfig).also {
+				if (resizedBitmaps.size >= RESIZE_CACHE_SIZE) {
+					resizedBitmaps.clear()
+				}
+				resizedBitmaps[key] = it
+			}
+			if (target !== resizedBitmap) {
+				resizedBitmap = target
+				resizedCanvas = Canvas(target)
+			}
 			resizedRect = Rect(0, 0, resizedBitmap.width, resizedBitmap.height)
 			sourceRect = findInnerRect(origRect, resizedRect)    // the capture region from the main map
 			Log.i(TAG, "Preparing resize pipeline of $sourceRect to $resizedRect")
@@ -92,6 +116,7 @@ class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfi
 		return Rect(left, top, left+width, top+height)
 	}
 
+	/** Must be called while holding the lock */
 	private fun convertToBitmap(image: Image): Bitmap {
 		// read from the image store to a Bitmap object
 		val planes = image.planes
@@ -105,48 +130,49 @@ class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfi
 		bitmap.copyPixelsFromBuffer(buffer)
 
 		// resize the image
-		var outputBitmap: Bitmap = bitmap
-		synchronized(this) {
-			if (sourceRect != resizedRect) {
-				// if we need to resize
-				resizedCanvas.drawBitmap(bitmap, sourceRect, resizedRect, resizeFilter)
-				outputBitmap = resizedBitmap
-			}
+		if (sourceRect != resizedRect) {
+			// if we need to resize
+			resizedCanvas.drawBitmap(bitmap, sourceRect, resizedRect, resizeFilter)
+			return resizedBitmap
 		}
-		return outputBitmap
+		return bitmap
 	}
 
 	fun getFrame(): Bitmap? {
-		val image = imageCapture.acquireLatestImage()
-		if (image != null) {
-			val bitmap = convertToBitmap(image)
-			image.close()
-			return bitmap
+		synchronized(lock) {
+			if (destroyed) return null
+			val image = try {
+				imageCapture.acquireLatestImage()
+			} catch (e: IllegalStateException) {
+				null
+			} ?: return null
+			try {
+				return convertToBitmap(image)
+			} finally {
+				image.close()
+			}
 		}
-		return null
 	}
 
 	fun compressBitmap(bitmap: Bitmap): ByteArray {
 		// send to car
-		outputFile.reset()
-		bitmap.compress(screenCaptureConfig.compressFormat, screenCaptureConfig.compressQuality, outputFile)
-		return outputFile.toByteArray()
+		synchronized(lock) {
+			outputFile.reset()
+			bitmap.compress(screenCaptureConfig.compressFormat, screenCaptureConfig.compressQuality, outputFile)
+			return outputFile.toByteArray()
+		}
 	}
 
 	fun onDestroy() {
-		this.imageCapture.setOnImageAvailableListener(null, null)
-		try {
-			this.imageCapture.close()
-		} catch (_: Exception) {}
-		try {
-			if (!bitmap.isRecycled) {
-				bitmap.recycle()
-			}
-		} catch (_: Exception) {}
-		try {
-			if (!resizedBitmap.isRecycled) {
-				resizedBitmap.recycle()
-			}
-		} catch (_: Exception) {}
+		synchronized(lock) {
+			if (destroyed) return
+			destroyed = true
+			try {
+				this.imageCapture.setOnImageAvailableListener(null, null)
+				this.imageCapture.close()
+			} catch (_: Exception) {}
+			// the bitmaps are left for the GC, in case a frame is still being sent to the car
+			resizedBitmaps.clear()
+		}
 	}
 }

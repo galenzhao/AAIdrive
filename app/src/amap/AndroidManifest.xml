@@ -29,8 +29,6 @@
     <!--用与导航状态中保持屏幕常亮-->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
-    <!--允许写设备缓存，用于问题排查-->
-    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <application>
         <meta-data
             android:name="com.amap.api.v2.apikey"

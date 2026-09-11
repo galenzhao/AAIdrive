@@ -78,6 +78,10 @@ object SimulatedCarLocation {
 }
 
 abstract class CarLocationProvider {
+	/**
+	 * Whether the car reports GCJ-02 coordinates (setting key kept as wgs84ToGcj02)
+	 * If so, they are converted back so that currentLocation is always WGS-84
+	 */
 	public var wgs84ToGcj02: Boolean = false
 
 	var currentLocation: Location? = null
@@ -111,12 +115,13 @@ class CdsLocationProvider(val appSettings: AppSettings?, val cdsData: CDSData, v
 		refreshCoordinateMode()
 		parseGPS()
 		parseHeading()
-		cdsData.addEventHandler(CDS.NAVIGATION.GPSPOSITION, 500, object: CDSEventHandler {
+		// slow background updates, start() subscribes for fast updates while the map is in use
+		cdsData.addEventHandler(CDS.NAVIGATION.GPSPOSITION, 10000, object: CDSEventHandler {
 			override fun onPropertyChangedEvent(property: CDSProperty, propertyValue: JsonObject) {
 				parseGPS()
 			}
 		})
-		cdsData.addEventHandler(CDS.NAVIGATION.GPSEXTENDEDINFO, 500, object: CDSEventHandler {
+		cdsData.addEventHandler(CDS.NAVIGATION.GPSEXTENDEDINFO, 10000, object: CDSEventHandler {
 			override fun onPropertyChangedEvent(property: CDSProperty, propertyValue: JsonObject) {
 				parseHeading()
 			}
@@ -139,8 +144,9 @@ class CdsLocationProvider(val appSettings: AppSettings?, val cdsData: CDSData, v
 	}
 
 	private fun refreshCoordinateMode() {
+		// "true" from the phone UI switch, or the older numeric setting where > 10 meant enabled
 		val raw = appSettings?.get(AppSettings.KEYS.wgs84ToGcj02)?.trim().orEmpty()
-		wgs84ToGcj02 = raw.equals("true", ignoreCase = true) || (raw.toIntOrNull() ?: 0) != 0
+		wgs84ToGcj02 = raw.equals("true", ignoreCase = true) || (raw.toIntOrNull() ?: 0) > 10
 	}
 
 	private fun parseGPS() {

@@ -36,7 +36,8 @@ class SearchInputView(val state: RHMIState,
 		const val SEARCH_HISTORY_QUERY_MAX_COUNT = 8
 	}
 
-	private val rhmiDispatcher = Handler(Looper.myLooper() ?: Looper.getMainLooper()).asCoroutineDispatcher()
+	// run RHMI updates on the car thread that built this view, if it has a Looper
+	private val rhmiDispatcher: CoroutineDispatcher = Looper.myLooper()?.let { Handler(it).asCoroutineDispatcher() } ?: Dispatchers.IO
 	override val coroutineContext: CoroutineContext
 		get() = rhmiDispatcher + CarThreadExceptionHandler
 	private var searchJob: Job? = null

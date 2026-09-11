@@ -67,38 +67,25 @@ class MapboxPlaceSearch(val searchEngine: MapboxGeocoding.Builder, val locationP
 		if (point != null) {
 			searchEngine.proximity(point)
 		}
-		var search: MapboxGeocoding? = null
-		if (query.contains(",")){
-			val pieces = query.split(",")
-			if (pieces.size != 2) {
-
-			}else {
-				val location = LatLong(pieces[0].toDouble(), pieces[1].toDouble())
-				val point = Point.fromLngLat(location.longitude, location.latitude)
-				search = searchEngine.query(point).build()
+		// a "lat,lng" query does a reverse geocode, anything else is a text search
+		val coordinate = MapQuickDestination.parseLocation(query)
+		val search = if (coordinate != null) {
+			searchEngine.query(Point.fromLngLat(coordinate.longitude, coordinate.latitude)).build()
+		} else {
+			searchEngine.query(query).build()
+		}
+		search.enqueueCall(object: Callback<GeocodingResponse> {
+			override fun onResponse(call: Call<GeocodingResponse>, response: Response<GeocodingResponse>) {
+				val resultPlaces = response.body()?.features()?.map {
+					MapResult(it, latLong)
+				} ?: emptyList()
+				results.complete(resultPlaces)
 			}
-		}else {
 
-		}
-		if (search == null) {
-			search = searchEngine.query(query).build()
-		}
-		if (search != null){
-
-			search.enqueueCall(object: Callback<GeocodingResponse> {
-				override fun onResponse(call: Call<GeocodingResponse>, response: Response<GeocodingResponse>) {
-					val resultPlaces = response.body()?.features()?.map {
-//					println(it)
-						MapResult(it, latLong)
-					} ?: emptyList()
-					results.complete(resultPlaces)
-				}
-
-				override fun onFailure(call: Call<GeocodingResponse>, t: Throwable) {
-					results.complete(emptyList())
-				}
-			})
-		}
+			override fun onFailure(call: Call<GeocodingResponse>, t: Throwable) {
+				results.complete(emptyList())
+			}
+		})
 
 		return results
 	}

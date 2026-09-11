@@ -27,20 +27,24 @@ class DynamicScreenCaptureConfig(val fullDimensions: RHMIDimensions,
 		const val RECENT_INTERACTION_THRESHOLD = 5000
 	}
 
-	override val maxWidth: Int = fullDimensions.visibleWidth
-	override val maxHeight: Int = fullDimensions.visibleHeight
+	// capture at the size of the image shown in the car, so it isn't cropped and upscaled
+	override val maxWidth: Int = appSettings[AppSettings.KEYS.MAP_DISPLAY_WIDTH].trim().toIntOrNull()?.takeIf { it > 0 }
+			?: fullDimensions.rhmiWidth
+	override val maxHeight: Int = appSettings[AppSettings.KEYS.MAP_DISPLAY_HEIGHT].trim().toIntOrNull()?.takeIf { it > 0 }
+			?: fullDimensions.rhmiHeight
 	override val compressFormat: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG
 	override val compressQuality: Int
 		get() {
-			return if (appSettings[AppSettings.KEYS.compressQuality].toInt()>10){
-				appSettings[AppSettings.KEYS.compressQuality].toInt()
-			}else {
-				val recentInteraction = recentInteractionUntil > timeProvider()
-				return if (carTransport == MusicAppMode.TRANSPORT_PORTS.USB) {
-					if (recentInteraction) 40 else 65
-				} else {
-					if (recentInteraction) 12 else 40
-				}
+			// an empty or out-of-range setting falls back to the dynamic quality
+			val configured = appSettings[AppSettings.KEYS.compressQuality].trim().toIntOrNull()
+			if (configured != null && configured in 1..100) {
+				return configured
+			}
+			val recentInteraction = recentInteractionUntil > timeProvider()
+			return if (carTransport == MusicAppMode.TRANSPORT_PORTS.USB) {
+				if (recentInteraction) 40 else 65
+			} else {
+				if (recentInteraction) 12 else 40
 			}
 		}
 
@@ -50,6 +54,18 @@ class DynamicScreenCaptureConfig(val fullDimensions: RHMIDimensions,
 	fun startInteraction(timeoutMs: Int = DynamicScreenCaptureConfig.RECENT_INTERACTION_THRESHOLD) {
 		recentInteractionUntil = max(recentInteractionUntil, timeProvider() + timeoutMs)
 	}
+}
+
+private enum class RouteSelectionState { NONE, REQUESTED, SHOWN, CANCELLED }
+
+/** What happened to a finished route calculation */
+enum class RouteDelivery {
+	/** shown to the user in the route list */
+	DELIVERED,
+	/** the user left the route list, so don't start navigating */
+	CANCELLED,
+	/** nobody asked to choose a route, so start navigating right away */
+	NOT_REQUESTED
 }
 
 class MapAppMode(val fullDimensions: RHMIDimensions,
@@ -64,40 +80,54 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 				field = value
 			}
 		private val currentNavDestinationObservable = MutableLiveData<LatLong?>()
+
+		// route selection is driven from the car thread and completed from the map's main thread
+		private val routeLock = Any()
 		private var pendingRoutes = CompletableDeferred<List<MapRouteChoice>>()
-		private var routeSelectionRequested = false
-		/** True from prepareRouteSelection until a route is started, stopped, or the list is empty. */
-		private var routeSelectionPending = false
+		private var routeSelectionState = RouteSelectionState.NONE
 
-		fun requestRouteSelection(): CompletableDeferred<List<MapRouteChoice>> {
-			if (!pendingRoutes.isCompleted) {
-				pendingRoutes.complete(emptyList())
-			}
+		fun requestRouteSelection(): CompletableDeferred<List<MapRouteChoice>> = synchronized(routeLock) {
+			pendingRoutes.complete(emptyList())
 			pendingRoutes = CompletableDeferred()
-			routeSelectionRequested = true
-			routeSelectionPending = true
-			return pendingRoutes
+			routeSelectionState = RouteSelectionState.REQUESTED
+			pendingRoutes
 		}
 
-		fun completePendingRoutes(routes: List<MapRouteChoice>): Boolean {
-			val requested = routeSelectionRequested
-			routeSelectionRequested = false
-			if (routes.isEmpty()) {
-				routeSelectionPending = false
+		fun completePendingRoutes(routes: List<MapRouteChoice>): RouteDelivery = synchronized(routeLock) {
+			val delivery = when (routeSelectionState) {
+				RouteSelectionState.REQUESTED -> RouteDelivery.DELIVERED
+				RouteSelectionState.CANCELLED -> RouteDelivery.CANCELLED
+				else -> RouteDelivery.NOT_REQUESTED
 			}
-			if (!pendingRoutes.isCompleted) {
-				pendingRoutes.complete(routes)
+			routeSelectionState = when {
+				delivery == RouteDelivery.DELIVERED && routes.isNotEmpty() -> RouteSelectionState.SHOWN
+				delivery == RouteDelivery.NOT_REQUESTED -> routeSelectionState
+				else -> RouteSelectionState.NONE
 			}
-			return requested
+			pendingRoutes.complete(routes)
+			delivery
 		}
 
-		fun finishRouteSelection() {
-			routeSelectionPending = false
-			routeSelectionRequested = false
-			if (!pendingRoutes.isCompleted) {
-				pendingRoutes.complete(emptyList())
-			}
+		/** A route was chosen, or navigation was stopped */
+		fun finishRouteSelection() = synchronized(routeLock) {
+			routeSelectionState = RouteSelectionState.NONE
+			pendingRoutes.complete(emptyList())
 		}
+
+		/** The user left the route list without choosing, so late route results must not start navigating */
+		fun cancelRouteSelection() = synchronized(routeLock) {
+			routeSelectionState = if (routeSelectionState == RouteSelectionState.REQUESTED) {
+				RouteSelectionState.CANCELLED
+			} else {
+				RouteSelectionState.NONE
+			}
+			pendingRoutes.complete(emptyList())
+		}
+
+		val isRouteSelectionPending: Boolean
+			get() = synchronized(routeLock) {
+				routeSelectionState == RouteSelectionState.REQUESTED || routeSelectionState == RouteSelectionState.SHOWN
+			}
 
 		fun resetSessionState() {
 			currentNavDestination = null
@@ -132,11 +162,12 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 		get() = MapAppMode.currentNavDestinationObservable
 
 	val isRouteSelectionPending: Boolean
-		get() = MapAppMode.routeSelectionPending
+		get() = MapAppMode.isRouteSelectionPending
 
 	fun requestRouteSelection() = MapAppMode.requestRouteSelection()
 	fun completePendingRoutes(routes: List<MapRouteChoice>) = MapAppMode.completePendingRoutes(routes)
 	fun finishRouteSelection() = MapAppMode.finishRouteSelection()
+	fun cancelRouteSelection() = MapAppMode.cancelRouteSelection()
 	fun resetSessionState() = MapAppMode.resetSessionState()
 
 	// navigation distance units
@@ -157,6 +188,10 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 	// Fill the configured RHMI canvas (including DIMENSIONS_* used by the emulator).
 	// FullImageView positions at (-padding + offset); default offset cancels padding so the image starts at 0,0.
 	override val rhmiDimensions = fullDimensions
+
+	// the area of the canvas not covered by the car's split screen, depending on the widescreen setting
+	// map flavors use it to keep the map content centered in the visible part of the image
+	val appDimensions = UpdatingSidebarRHMIDimensions(fullDimensions) { isWidescreen }
 
 	val isWidescreen: Boolean
 		get() = appSettings[AppSettings.KEYS.MAP_WIDESCREEN].toBoolean()

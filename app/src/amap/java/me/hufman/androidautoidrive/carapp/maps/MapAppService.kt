@@ -42,7 +42,7 @@ class MapAppService: CarAppService() {
 			val mapAppMode = MapAppMode.build(dimensions, MutableAppSettingsReceiver(this, handler), cdsData, MusicAppMode.TRANSPORT_PORTS.fromPort(iDriveConnectionStatus.port) ?: MusicAppMode.TRANSPORT_PORTS.BT)
 			val carLocationProvider = CdsLocationProvider(appSettings, cdsData, CarCapabilitiesSummarized(CarInformation()).isId4)
 			this.mapAppMode = mapAppMode
-			val renderScale = MapNaviBehavior.renderScale(appSettings)
+			val renderScale = MapNaviBehavior.renderScale(appSettings, mapAppMode.imageWidth, mapAppMode.imageHeight)
 			val captureConfig = object : ScreenCaptureConfig {
 				override val maxWidth = mapAppMode.imageWidth * renderScale
 				override val maxHeight = mapAppMode.imageHeight * renderScale

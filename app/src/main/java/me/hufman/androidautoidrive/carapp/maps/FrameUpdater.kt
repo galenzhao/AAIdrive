@@ -13,33 +13,38 @@ interface FrameModeListener {
 }
 
 class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: FrameModeListener?): Runnable {
-	var destination: RHMIModel? = null
-	var isRunning = true
-	private var handler: Handler? = null
+	@Volatile var destination: RHMIModel? = null
+	@Volatile var isRunning = true
+	@Volatile private var handler: Handler? = null
+	@Volatile private var lastFrameTime = 0L
 
 	fun start(handler: Handler) {
 		this.handler = handler
 		isRunning = true
 		Log.i(TAG, "Starting FrameUpdater thread with handler $handler")
 		display.registerImageListener(ImageReader.OnImageAvailableListener {
-			schedule(frameDelayMs())
+			// Called from the UI thread for every rendered image
+			// throttle: aim at a fixed time after the last sent frame, so that a continuously
+			// rendering map doesn't keep pushing the next send further back
+			val wait = lastFrameTime + frameDelayMs() - System.currentTimeMillis()
+			schedule(wait.coerceIn(0, frameDelayMs().toLong()).toInt())
 		})
 		schedule()  // check for a first image
 	}
 
 	override fun run() {
-		if (!isRunning) {
-			return
-		}
-		if (destination == null) {
-			schedule(frameDelayMs())
+		if (!isRunning || destination == null) {
+			// showWindow will check for a frame when the map is visible again
 			return
 		}
 		val bitmap = display.getFrame()
 		if (bitmap != null) {
 			sendImage(bitmap)
+			lastFrameTime = System.currentTimeMillis()
+			// check again in case more images arrived while sending
+			schedule(frameDelayMs())
 		}
-		schedule(frameDelayMs())
+		// otherwise wait for the image listener to say a new image is available
 	}
 
 	private fun frameDelayMs(): Int = MapFrameRate.intervalMs()
@@ -48,8 +53,9 @@ class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: F
 		if (!isRunning) {
 			return
 		}
-		handler?.removeCallbacks(this)   // remove any previously-scheduled invocations
-		handler?.postDelayed(this, delayMs.toLong())
+		val handler = handler ?: return
+		handler.removeCallbacks(this)   // remove any previously-scheduled invocations
+		handler.postDelayed(this, delayMs.toLong())
 	}
 
 	fun shutDown() {
@@ -63,6 +69,7 @@ class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: F
 		Log.i(TAG, "Changing map mode to $width x $height")
 		display.changeImageSize(width, height)
 		modeListener?.onResume()
+		schedule()
 	}
 	fun hideWindow(destination: RHMIModel) {
 		if (this.destination == destination) {

@@ -212,7 +212,9 @@ interface AppSettings {
 				editor.putString(key.key, value)
 				editor.apply()
 			}
-			loadedSettings[key] = value
+			synchronized(loadedSettings) {
+				loadedSettings[key] = value
+			}
 		}
 	}
 

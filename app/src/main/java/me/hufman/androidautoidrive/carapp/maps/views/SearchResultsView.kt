@@ -53,6 +53,7 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 	private var loadingRoutes: Deferred<List<MapRouteChoice>> = CompletableDeferred(emptyList())
 	private var routeContents: List<MapRouteChoice> = emptyList()
 	private var routeMode = false
+	private var routeChosen = false
 	@VisibleForTesting
 	var usesRouteSelectionOverride: Boolean? = null
 	val usesRouteSelection: Boolean
@@ -69,6 +70,12 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 				show()
 			} else {
 				loaderJob?.cancel()
+				if (routeMode && !routeChosen && mapAppMode.isRouteSelectionPending) {
+					// left the route list without choosing: the map page kept running for the
+					// route list, and is not coming back, so let it pause
+					mapAppMode.cancelRouteSelection()
+					interaction.pauseMap()
+				}
 			}
 		}
 
@@ -97,6 +104,7 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 	fun prepareRouteSelection(): Deferred<List<MapRouteChoice>> {
 		loaderJob?.cancel()
 		routeMode = true
+		routeChosen = false
 		routeContents = emptyList()
 		loadingRoutes = mapAppMode.requestRouteSelection()
 		state.getTextModel()?.asRaDataModel()?.value = L.MAP_ROUTE_RESULTS_TITLE
@@ -229,6 +237,7 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 			setListHmiTarget(0)
 			throw RHMIActionAbort()
 		}
+		routeChosen = true
 		setListHmiTarget(mapStateId)
 		interaction.selectRoute(route.routeId)
 	}

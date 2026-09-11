@@ -21,6 +21,15 @@ fun LatLonPoint.toLatLong(): LatLong {
 	return LatLong(this.latitude, this.longitude)
 }
 
+/** Car locations are WGS-84 inside the app, but AMap expects GCJ-02 inside China */
+fun LatLong.toGcj02(): LatLong {
+	if (CoordinateUtil.outOfChina(longitude, latitude)) {
+		return this
+	}
+	val coord = CoordinateUtil.wgs84ToGcj02(longitude, latitude)
+	return LatLong(coord.lat, coord.lng)
+}
+
 fun MapResult(poi: PoiItem, origin: LatLong?): MapResult {
 	val featureLocation = poi.latLonPoint?.toLatLong()
 	val distanceKm = poi.distance.takeIf { it > 0 }?.toFloat()?.div(1000)
@@ -94,16 +103,7 @@ class AmapPlaceSearch(
 			return CompletableDeferred(emptyList())
 		}
 		val results = CompletableDeferred<List<MapResult>>()
-		val location = locationProvider.currentLocation
-		val latLong = location?.let {
-			val raw = LatLong(it.latitude, it.longitude)
-			if (!CoordinateUtil.outOfChina(raw.longitude, raw.latitude) && locationProvider.wgs84ToGcj02) {
-				val coord = CoordinateUtil.wgs84ToGcj02(raw.longitude, raw.latitude)
-				LatLong(coord.lat, coord.lng)
-			} else {
-				raw
-			}
-		}
+		val latLong = locationProvider.currentLocation?.let { LatLong(it.latitude, it.longitude).toGcj02() }
 		Log.i(TAG, "Starting AMap Inputtips search for $query near $latLong")
 
 		try {
@@ -142,16 +142,7 @@ class AmapPlaceSearch(
 			result.complete(null)
 			return result
 		}
-		val location = locationProvider.currentLocation
-		val latLong = location?.let {
-			val raw = LatLong(it.latitude, it.longitude)
-			if (!CoordinateUtil.outOfChina(raw.longitude, raw.latitude) && locationProvider.wgs84ToGcj02) {
-				val coord = CoordinateUtil.wgs84ToGcj02(raw.longitude, raw.latitude)
-				LatLong(coord.lat, coord.lng)
-			} else {
-				raw
-			}
-		}
+		val latLong = locationProvider.currentLocation?.let { LatLong(it.latitude, it.longitude).toGcj02() }
 		Log.i(TAG, "Looking up AMap POI id $resultId")
 
 		try {

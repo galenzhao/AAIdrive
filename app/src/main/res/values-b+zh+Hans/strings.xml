@@ -118,7 +118,7 @@
     <string name="lbl_amap_emulator_speed_hint">模拟导航的时速，10–200，默认 80。下次开始导航时生效。</string>
     <string name="hint_amap_emulator_speed">80</string>
     <string name="lbl_amap_select_route">开始前选择路线</string>
-    <string name="lbl_amap_wgs84_gcj02">WGS84 转 GCJ-02</string>
+    <string name="lbl_amap_wgs84_gcj02">车机 GPS 输出的是 GCJ-02 坐标</string>
     <string name="lbl_amap_night_auto">自动夜间界面</string>
     <string name="lbl_amap_night">夜间导航界面</string>
     <string name="lbl_amap_layout">显示导航控件</string>
