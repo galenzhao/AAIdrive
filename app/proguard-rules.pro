@@ -31,6 +31,7 @@
 -keep class kotlin.collections.SetsKt
 -keep class kotlin.coroutines.ExecutorsKt
 -keep class kotlin.coroutines.intrinsics.IntrinsicsKt
+-keep class kotlin.LazyKt
 -keep class io.wax911.emojify.model.Emoji { *; }
 -keep class me.hufman.androidautoidrive.** { *; }
 
@@ -43,7 +44,6 @@
 ### keep test classes
 # (fixes `Failed loading specified test class 'com.example.benchmark.ExampleTest'`)
 -keepclasseswithmembers @org.junit.runner.RunWith class * { *; }
-
 # Please add these rules to your existing keep rules in order to suppress warnings.
 # This is generated automatically by the Android Gradle plugin.
 -dontwarn com.fasterxml.jackson.databind.deser.std.StdDeserializer
@@ -75,3 +75,6 @@
 
 # And from Sentry
 -dontwarn javax.**
+
+# And Spotify SDK
+-dontwarn com.spotify.base.annotations.NotNull

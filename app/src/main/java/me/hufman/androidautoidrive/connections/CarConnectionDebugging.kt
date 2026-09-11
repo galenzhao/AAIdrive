@@ -10,6 +10,7 @@ import android.provider.Settings
 import io.bimmergestalt.idriveconnectkit.android.IDriveConnectionObserver
 import io.bimmergestalt.idriveconnectkit.android.security.KnownSecurityServices
 import io.bimmergestalt.idriveconnectkit.android.security.SecurityAccess
+import io.github.g00fy2.versioncompare.Version
 import me.hufman.androidautoidrive.carapp.music.MusicAppMode
 
 /**
@@ -73,10 +74,9 @@ class CarConnectionDebugging(val context: Context, val callback: () -> Unit) {
 				val version = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 					context.packageManager.getPackageInfo(it.packageName, PackageInfoFlags.of(0)).versionName
 				} else {
-					@Suppress("DEPRECATION")
 					context.packageManager.getPackageInfo(it.packageName, 0).versionName
 				}
-				version.startsWith("6.5")
+				version?.startsWith("6.5") == true
 			}
 		} catch (e: Exception) { false }
 
@@ -88,10 +88,9 @@ class CarConnectionDebugging(val context: Context, val callback: () -> Unit) {
 				val version = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 					context.packageManager.getPackageInfo(it.packageName, PackageInfoFlags.of(0)).versionName
 				} else {
-					@Suppress("DEPRECATION")
 					context.packageManager.getPackageInfo(it.packageName, 0).versionName
 				}
-				version.startsWith("6.5")
+				version?.startsWith("6.5") == true
 			}
 		} catch (e: Exception) { false }
 
@@ -113,6 +112,36 @@ class CarConnectionDebugging(val context: Context, val callback: () -> Unit) {
 		get() = KnownSecurityServices.entries.any {
 			it.name.startsWith("MiniMine") && isPermissionGranted(it.packageName, "android.permission.BLUETOOTH_CONNECT")
 		}
+
+	val isBMWMine56Installed
+		get() = try {
+			SecurityAccess.installedSecurityServices.filter {
+				it.name.startsWith("BMWMine")
+			}.any {
+				val version = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+					context.packageManager.getPackageInfo(it.packageName, PackageInfoFlags.of(0)).versionName
+				} else {
+					context.packageManager.getPackageInfo(it.packageName, 0).versionName
+				}
+				val versionObj = Version(version)
+				versionObj >= Version("5.6") && versionObj < Version("5.9.3")
+			}
+		} catch (e: Exception) { false }
+
+	val isMiniMine56Installed
+		get() = try {
+			SecurityAccess.installedSecurityServices.filter {
+				it.name.startsWith("MiniMine")
+			}.any {
+				val version = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+					context.packageManager.getPackageInfo(it.packageName, PackageInfoFlags.of(0)).versionName
+				} else {
+					context.packageManager.getPackageInfo(it.packageName, 0).versionName
+				}
+				val versionObj = Version(version)
+				versionObj >= Version("5.6") && versionObj < Version("5.9.3")
+			}
+		} catch (e: Exception) { false }
 
 	private val btStatus = BtStatus(context) { callback() }
 	private val usbStatus = UsbStatus(context) { callback() }
@@ -172,8 +201,9 @@ class CarConnectionDebugging(val context: Context, val callback: () -> Unit) {
 			return false
 		}
 		var found = false
-		packageInfo.requestedPermissions.forEachIndexed { index, perm ->
-			val granted = (packageInfo.requestedPermissionsFlags[index] and REQUESTED_PERMISSION_GRANTED) > 0
+		packageInfo.requestedPermissions?.forEachIndexed { index, perm ->
+			val flags = packageInfo.requestedPermissionsFlags?.get(index) ?: 0
+			val granted = (flags and REQUESTED_PERMISSION_GRANTED) > 0
 			if (perm == permission) {
 				found = granted
 			}

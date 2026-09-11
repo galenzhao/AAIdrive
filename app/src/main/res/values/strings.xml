@@ -20,6 +20,7 @@
     <string name="notification_channel_donation">Donation Request</string>
     <string name="notification_channel_spotify">Spotify Authorization</string>
     <string name="notification_channel_test">Test Notification</string>
+    <string name="notification_channel_map_testing">Map Testing Service</string>
 
     <!-- The text to show in the Intent Receiver when offering apps to navigate with -->
     <string name="navigation_listener_bmw">BMW Navigation</string>
@@ -97,6 +98,7 @@
 
     <string name="lbl_mapspage">AAIdrive includes a custom map that is rendered internally on the phone and displayed in the car</string>
     <string name="enable_custom_maps">Enable Custom Map</string>
+    <string name="enable_map_testing">Show test map</string>
     <string name="lbl_map_bt_hint">Map performance and quality when connected over Bluetooth will be poor</string>
     <string name="lbl_map_phone_gps">Use Phone GPS instead of Car GPS</string>
     <string name="lbl_widescreen_map">Widescreen Map</string>
@@ -157,6 +159,14 @@
     <string name="lbl_gmap_invalid_apikey">The GMaps API Key is invalid and map functionality will be reduced. Please notify the developer of this bug and watch for an update</string>
     <string name="lbl_mapbox_invalid_token">The Mapbox Token is invalid and map functionality will be reduced. Please notify the developer of this bug and watch for an update</string>
     <string name="lbl_amap_invalid_token">The AMap API Key is invalid and map functionality will be reduced. Please notify the developer of this bug and watch for an update</string>
+    <string name="lbl_map_testing">Map Testing Service</string>
+    <string name="btn_map_testing_zoom_in">Zoom In</string>
+    <string name="btn_map_testing_zoom_out">Zoom Out</string>
+    <string name="btn_map_testing_move_forward">Move Forward</string>
+    <string name="btn_map_testing_steer_left">Steer Left</string>
+    <string name="btn_map_testing_steer_right">Steer Right</string>
+    <string name="btn_set_location">Set location</string>
+    <string name="btn_start_navigation">Start navigation</string>
 
     <string name="lbl_musicpage">Your phone\'s music apps are selectable as media sources in the car</string>
     <string name="lbl_music_apps">Music Apps</string>
@@ -256,6 +266,8 @@
     <string name="txt_setup_mini_missing">Not ready to connect to a Mini:</string>
     <string name="txt_setup_bmw_connected_65">BMW Connected 6.5 is installed, which sometimes doesn\'t start the car connection. Try downgrading to 6.4 or upgrading to MyBMW if you encounter problems</string>
     <string name="txt_setup_mini_connected_65">Mini Connected 6.5 is installed, which sometimes doesn\'t start the car connection. Try downgrading to 6.4 or upgrading to the new Mini app if you encounter problems</string>
+    <string name="txt_setup_bmw_mine_56">Some versions of the MyBMW app do not connect reliably to the car. Upgrade to MyBMW 5.9.3, or try downgrading to BMW Connected 6.4</string>
+    <string name="txt_setup_mini_mine_56">Some versions of the MINI app do not connect reliably to the car. Upgrade to MINI 5.9.3, or try downgrading to Mini Connected 6.4</string>
     <string name="txt_setup_bmw_mine_detected">The new My BMW app is installed, which might cause problems with BMW Connected and is not supported</string>
     <string name="txt_setup_mini_mine_detected">The new MINI app is installed, which might cause problems with Mini Connected and is not supported</string>
     <string name="txt_setup_bmw_mine_conflict">Both the BMW Connected and My BMW apps are installed, which might cause connection instability unless connecting over USB</string>

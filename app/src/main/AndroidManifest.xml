@@ -103,7 +103,8 @@
         </activity>
 
         <activity
-            android:name=".phoneui.WelcomeActivity" >
+            android:name=".phoneui.WelcomeActivity"
+            android:theme="@style/AppTheme.NoActionBar">
         </activity>
         <activity
             android:name=".phoneui.NavIntentActivity"
@@ -1045,7 +1046,8 @@
         </activity-alias>
 
         <activity android:name=".phoneui.MusicPlayerActivity"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBar">
         </activity>
 
         <service android:name=".MainService"
