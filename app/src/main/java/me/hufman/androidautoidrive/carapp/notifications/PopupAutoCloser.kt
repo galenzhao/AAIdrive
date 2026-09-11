@@ -16,4 +16,8 @@ class PopupAutoCloser(val handler: Handler, val popupView: PopupView) {
 		handler.removeCallbacks(runnable)
 		handler.postDelayed(runnable, DELAY)
 	}
+
+	fun cancel() {
+		handler.removeCallbacks(runnable)
+	}
 }

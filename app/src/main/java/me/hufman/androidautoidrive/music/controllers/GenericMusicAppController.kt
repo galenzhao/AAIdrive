@@ -265,10 +265,14 @@ class GenericMusicAppController(val context: Context, val mediaController: Media
 		try {
 			mediaController.unregisterCallback(this.controllerCallback)
 			allControllerCaches.forEach { it.enabled = false }
-		} catch (e: Exception) {}
+		} catch (e: Exception) {
+			Log.w(TAG, "Failed to unregister media controller callback", e)
+		}
 		try {
 			musicBrowser?.disconnect()
-		} catch (e: Exception) {}
+		} catch (e: Exception) {
+			Log.w(TAG, "Failed to disconnect music browser", e)
+		}
 		callback?.invoke(this)
 	}
 

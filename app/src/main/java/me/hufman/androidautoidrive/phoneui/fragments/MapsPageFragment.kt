@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import me.hufman.androidautoidrive.databinding.MapPageSettingsBinding
+import me.hufman.androidautoidrive.phoneui.controllers.PermissionsController
 import me.hufman.androidautoidrive.phoneui.viewmodels.ConnectionStatusModel
 import me.hufman.androidautoidrive.phoneui.viewmodels.MapPageModel
 import me.hufman.androidautoidrive.phoneui.viewmodels.activityViewModels
@@ -21,5 +22,25 @@ class MapsPageFragment: Fragment() {
 		binding.connectionmodel = connectionViewModel
 		binding.viewmodel = mapPageModel
 		return binding.root
+	}
+
+	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+		super.onViewCreated(view, savedInstanceState)
+		mapPageModel.mapEnabled.observe(viewLifecycleOwner) { enabled ->
+			if (enabled) {
+				promptLocationIfNeeded()
+			}
+		}
+	}
+
+	override fun onResume() {
+		super.onResume()
+		if (mapPageModel.mapEnabled.value == true) {
+			promptLocationIfNeeded()
+		}
+	}
+
+	private fun promptLocationIfNeeded() {
+		PermissionsController(requireActivity()).promptLocationIfNeeded()
 	}
 }

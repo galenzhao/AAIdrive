@@ -483,6 +483,7 @@ class SpotifyWebApi private constructor(val context: Context, val appSettings: M
 		if (instanceCount == 0) {
 			Log.d(TAG, "All instances of SpotifyWebApi disconnected. Shutting down Web API")
 			webApi?.shutdown()
+			webApi = null
 			isUsingSpotify = false
 			clearPendingQueueMetadataCreate()
 		}

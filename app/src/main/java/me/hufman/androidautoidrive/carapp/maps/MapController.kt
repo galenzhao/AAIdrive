@@ -20,12 +20,14 @@ const val INTERACTION_ZOOM_OUT = "me.hufman.androidautoidrive.maps.INTERACTION.Z
 const val INTERACTION_SEARCH = "me.hufman.androidautoidrive.maps.INTERACTION.SEARCH"
 const val INTERACTION_SEARCH_DETAILS = "me.hufman.androidautoidrive.maps.INTERACTION.SEARCH_DETAILS"
 const val INTERACTION_NAV_START = "me.hufman.androidautoidrive.maps.INTERACTION.NAV_START"
+const val INTERACTION_NAV_SELECT_ROUTE = "me.hufman.androidautoidrive.maps.INTERACTION.NAV_SELECT_ROUTE"
 const val INTERACTION_NAV_RECALCULATE = "me.hufman.androidautoidrive.maps.INTERACTION.NAV_RECALCULATE"
 const val INTERACTION_NAV_STOP = "me.hufman.androidautoidrive.maps.INTERACTION.NAV_STOP"
 const val EXTRA_ZOOM_AMOUNT = "me.hufman.androidautoidrive.maps.INTERACTION.ZOOM_AMOUNT"
 const val EXTRA_QUERY = "me.hufman.androidautoidrive.maps.INTERACTION.QUERY"
 const val EXTRA_ID = "me.hufman.androidautoidrive.maps.INTERACTION.ID"
 const val EXTRA_LATLONG = "me.hufman.androidautoidrive.maps.INTERACTION.LATLONG"
+const val EXTRA_ROUTE_ID = "me.hufman.androidautoidrive.maps.INTERACTION.ROUTE_ID"
 
 const val NAVIGATION_MAP_STARTZOOM_TIME = 4000
 const val NAVIGATION_MAP_STARTZOOM_PADDING = 50
@@ -36,6 +38,7 @@ interface MapInteractionController {
 	fun zoomIn(steps: Int = 1)
 	fun zoomOut(steps: Int = 1)
 	fun navigateTo(dest: LatLong)
+	fun selectRoute(routeId: Int)
 	fun recalcNavigation()
 	fun stopNavigation()
 }
@@ -70,6 +73,10 @@ class MapInteractionControllerIntent(val context: Context): MapInteractionContro
 		send(INTERACTION_NAV_START, Bundle().apply { putSerializable(EXTRA_LATLONG, dest) })
 	}
 
+	override fun selectRoute(routeId: Int) {
+		send(INTERACTION_NAV_SELECT_ROUTE, Bundle().apply { putInt(EXTRA_ROUTE_ID, routeId) })
+	}
+
 	override fun recalcNavigation() {
 		send(INTERACTION_NAV_RECALCULATE)
 	}
@@ -101,6 +108,8 @@ class MapsInteractionControllerListener(val context: Context, val controller: Ma
 				INTERACTION_ZOOM_IN -> controller.zoomIn(intent.getIntExtra(EXTRA_ZOOM_AMOUNT, 1))
 				INTERACTION_ZOOM_OUT -> controller.zoomOut(intent.getIntExtra(EXTRA_ZOOM_AMOUNT, 1))
 				INTERACTION_NAV_START -> controller.navigateTo(intent.getSerializableExtraCompat(EXTRA_LATLONG) as? LatLong
+						?: return)
+				INTERACTION_NAV_SELECT_ROUTE -> controller.selectRoute(intent.getIntExtra(EXTRA_ROUTE_ID, -1).takeIf { it >= 0 }
 						?: return)
 				INTERACTION_NAV_RECALCULATE -> controller.recalcNavigation()
 				INTERACTION_NAV_STOP -> controller.stopNavigation()

@@ -198,6 +198,12 @@ class MusicApp(val iDriveConnectionStatus: IDriveConnectionStatus, val securityA
 		}
 	}
 
+	fun disconnect() {
+		try {
+			IDriveConnection.disconnectEtchConnection(carConnection)
+		} catch (_: Exception) {}
+	}
+
 	fun updateAmApps() {
 		val amRadioAdjustment = musicAppMode.getRadioAppName()?.let {AMAppInfo.getAppWeight(it) - (800 - 500)} ?: 0
 		val amSpotifyAdjustment = AMAppInfo.getAppWeight("Spotify") - (800 - 500)

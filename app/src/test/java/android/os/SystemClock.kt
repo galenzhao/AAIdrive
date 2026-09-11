@@ -5,4 +5,9 @@ object SystemClock {
 	fun elapsedRealtime(): Long {
 		return System.currentTimeMillis()
 	}
+
+	@JvmStatic
+	fun elapsedRealtimeNanos(): Long {
+		return System.nanoTime()
+	}
 }

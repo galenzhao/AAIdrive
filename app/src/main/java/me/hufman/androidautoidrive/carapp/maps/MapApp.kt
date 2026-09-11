@@ -1,6 +1,5 @@
 package me.hufman.androidautoidrive.carapp.maps
 
-import android.content.Context
 import android.os.Handler
 import android.util.Log
 import de.bmw.idrive.BMWRemoting
@@ -33,8 +32,6 @@ class MapApp(iDriveConnectionStatus: IDriveConnectionStatus, securityAccess: Sec
              val mapAppMode: MapAppMode, val locationProvider: CarLocationProvider,
              val interaction: MapInteractionController, val mapPlaceSearch: MapPlaceSearch, val map: VirtualDisplayScreenCapture) {
 
-	public var applicationContext: Context? = null;
-
 	val carappListener = CarAppListener()
 	val carConnection: BMWRemotingServer
 	val carApp: RHMIApplication
@@ -54,8 +51,6 @@ class MapApp(iDriveConnectionStatus: IDriveConnectionStatus, securityAccess: Sec
 	})
 
 	init {
-		frameUpdater.applicationContext = applicationContext;
-
 		carConnection = IDriveConnection.getEtchConnection(iDriveConnectionStatus.host ?: "127.0.0.1", iDriveConnectionStatus.port ?: 8003, carappListener)
 		val appCert = carAppAssets.getAppCertificate(iDriveConnectionStatus.brand ?: "")?.readBytes() as ByteArray
 		val sas_challenge = carConnection.sas_certificate(appCert)
@@ -106,8 +101,13 @@ class MapApp(iDriveConnectionStatus: IDriveConnectionStatus, securityAccess: Sec
 
 		// set up the components
 		Log.i(TAG, "Setting up component behaviors")
-		menuView.initWidgets(fullImageView.state, stateInput)
+		menuView.initWidgets(fullImageView.state, stateInput, searchResultsView)
 		fullImageView.initWidgets()
+		val settingsCallback = mapAppMode.appSettings.callback
+		mapAppMode.appSettings.callback = {
+			settingsCallback?.invoke()
+			fullImageView.applyImageLayout()
+		}
 		stateInputState.initWidgets(fullImageView, searchResultsView)
 		searchResultsView.initWidgets(fullImageView)
 
@@ -135,22 +135,24 @@ class MapApp(iDriveConnectionStatus: IDriveConnectionStatus, securityAccess: Sec
 		var app: RHMIApplication? = null
 		override fun rhmi_onActionEvent(handle: Int?, ident: String?, actionId: Int?, args: MutableMap<*, *>?) {
 			Log.w(TAG, "Received rhmi_onActionEvent: handle=$handle ident=$ident actionId=$actionId args=$args")
-			try {
-				app?.actions?.get(actionId)?.asRAAction()?.rhmiActionCallback?.onActionEvent(args)
-				synchronized(server!!) {
-					server?.rhmi_ackActionEvent(handle, actionId, 1, true)
-				}
-			} catch (e: RHMIActionAbort) {
-				// Action handler requested that we don't claim success
-				synchronized(server!!) {
-					server?.rhmi_ackActionEvent(handle, actionId, 1, false)
-				}
-			} catch (e: Exception) {
-				Log.e(me.hufman.androidautoidrive.carapp.notifications.TAG, "Exception while calling onActionEvent handler!", e)
-				synchronized(server!!) {
-					server?.rhmi_ackActionEvent(handle, actionId, 1, true)
-				}
+		try {
+			app?.actions?.get(actionId)?.asRAAction()?.rhmiActionCallback?.onActionEvent(args)
+			val server = this.server ?: return
+			synchronized(server) {
+				server.rhmi_ackActionEvent(handle, actionId, 1, true)
 			}
+		} catch (e: RHMIActionAbort) {
+			val server = this.server ?: return
+			synchronized(server) {
+				server.rhmi_ackActionEvent(handle, actionId, 1, false)
+			}
+		} catch (e: Exception) {
+			Log.e(me.hufman.androidautoidrive.carapp.notifications.TAG, "Exception while calling onActionEvent handler!", e)
+			val server = this.server ?: return
+			synchronized(server) {
+				server.rhmi_ackActionEvent(handle, actionId, 1, true)
+			}
+		}
 		}
 
 		override fun rhmi_onHmiEvent(handle: Int?, ident: String?, componentId: Int?, eventId: Int?, args: MutableMap<*, *>?) {

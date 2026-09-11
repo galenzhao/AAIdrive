@@ -147,16 +147,22 @@ class MainService: Service() {
 				true)
 
 		val action = intent?.action ?: ""
-		if (action == ACTION_START) {
-			handleActionStart()
-		} else if (action == ACTION_STOP) {
+		if (action == ACTION_STOP) {
 			handleActionStop()
 			stopSelf()
+		} else {
+			// Sticky restarts often arrive with a null intent; still reconnect.
+			handleActionStart()
 		}
 		return START_STICKY
 	}
 
 	override fun onDestroy() {
+		handler.removeCallbacks(combinedCallbackRunnable)
+		handler.removeCallbacks(shutdownTimeout)
+		try {
+			handler.removeCallbacks(btfetchUuidsWithSdp)
+		} catch (_: Exception) {}
 		handleActionStop()
 		// undo one time things
 		carInformationObserver.cdsData.removeEventHandler(CDS.VEHICLE.LANGUAGE, cdsObserver)
@@ -186,10 +192,15 @@ class MainService: Service() {
 	private fun handleActionStart() {
 		Log.i(TAG, "Starting up service $this")
 		// try connecting to the security service
-		if (!securityServiceThread.isAlive) {
-			securityServiceThread.start()
+		try {
+			if (!securityServiceThread.isAlive) {
+				securityServiceThread.start()
+			}
+			securityServiceThread.connect()
+		} catch (e: IllegalThreadStateException) {
+			// Thread already started and stopped; connect() on a dead thread is a no-op — next process start recreates MainService.
+			Log.w(TAG, "SecurityServiceThread already finished, skipping restart on this MainService instance", e)
 		}
-		securityServiceThread.connect()
 		// start up car connection listener
 		announceCarAPI()
 		iDriveConnectionReceiver.subscribe(applicationContext)
@@ -522,6 +533,9 @@ class MainService: Service() {
 		synchronized(MainService::class.java) {
 			stopCarApps()
 		}
+		if (securityServiceThread.isAlive) {
+			securityServiceThread.disconnect()
+		}
 	}
 
 	private fun stopServiceNotification() {
@@ -536,7 +550,7 @@ class MainService: Service() {
 	}
 
 	/** Receive updates about the connection status */
-	class ModuleServiceConnection(val name: String): ServiceConnection {
+	inner class ModuleServiceConnection(val name: String): ServiceConnection {
 		var connected = false
 			private set
 
@@ -551,6 +565,16 @@ class MainService: Service() {
 		override fun onServiceDisconnected(name: ComponentName?) {
 			Log.i(TAG, "Disconnected from $name module")
 			connected = false
+			synchronized(this@MainService) {
+				val connection = moduleServiceBindings.remove(this.name)
+				if (connection != null) {
+					try {
+						unbindService(connection)
+					} catch (e: Exception) {
+						Log.w(TAG, "Error unbinding disconnected module ${this.name}", e)
+					}
+				}
+			}
 		}
 	}
 }

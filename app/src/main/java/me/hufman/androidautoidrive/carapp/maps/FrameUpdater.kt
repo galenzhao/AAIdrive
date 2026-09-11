@@ -1,14 +1,11 @@
 package me.hufman.androidautoidrive.carapp.maps
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.media.ImageReader
 import android.os.Handler
 import android.util.Log
 import de.bmw.idrive.BMWRemoting
 import io.bimmergestalt.idriveconnectkit.rhmi.RHMIModel
-import me.hufman.androidautoidrive.AppSettings
-import me.hufman.androidautoidrive.AppSettingsViewer
 
 interface FrameModeListener {
 	fun onResume()
@@ -16,55 +13,41 @@ interface FrameModeListener {
 }
 
 class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: FrameModeListener?): Runnable {
-	public var applicationContext: Context? = null;
 	var destination: RHMIModel? = null
 	var isRunning = true
 	private var handler: Handler? = null
 
 	fun start(handler: Handler) {
 		this.handler = handler
+		isRunning = true
 		Log.i(TAG, "Starting FrameUpdater thread with handler $handler")
-		display.registerImageListener(ImageReader.OnImageAvailableListener // Called from the UI thread to say a new image is available
-		{
-			// let the car thread consume the image
-
-			if (applicationContext != null) {
-				AppSettings.loadSettings(applicationContext!!)
-				val appSettings = AppSettingsViewer();
-				schedule(appSettings[AppSettings.KEYS.MINFRAMETIME].toInt())
-			}else {
-				schedule(5)
-			}
+		display.registerImageListener(ImageReader.OnImageAvailableListener {
+			schedule(frameDelayMs())
 		})
 		schedule()  // check for a first image
 	}
 
 	override fun run() {
-		var bitmap = display.getFrame()
+		if (!isRunning) {
+			return
+		}
+		if (destination == null) {
+			schedule(frameDelayMs())
+			return
+		}
+		val bitmap = display.getFrame()
 		if (bitmap != null) {
 			sendImage(bitmap)
-//			schedule()  // check if there's another frame ready for us right now
-			if (applicationContext != null) {
-				AppSettings.loadSettings(applicationContext!!)
-				val appSettings = AppSettingsViewer();
-				schedule(appSettings[AppSettings.KEYS.MINFRAMETIME].toInt())
-			}else {
-				schedule(30)
-			}
-		} else {
-			// wait for the next frame, unless the callback comes back sooner
-//			schedule(1000)
-			if (applicationContext != null) {
-				AppSettings.loadSettings(applicationContext!!)
-				val appSettings = AppSettingsViewer();
-				schedule(appSettings[AppSettings.KEYS.MINFRAMETIME].toInt())
-			}else {
-				schedule(1000)
-			}
 		}
+		schedule(frameDelayMs())
 	}
 
+	private fun frameDelayMs(): Int = MapFrameRate.intervalMs()
+
 	fun schedule(delayMs: Int = 0) {
+		if (!isRunning) {
+			return
+		}
 		handler?.removeCallbacks(this)   // remove any previously-scheduled invocations
 		handler?.postDelayed(this, delayMs.toLong())
 	}
@@ -89,9 +72,9 @@ class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: F
 	}
 
 	private fun sendImage(bitmap: Bitmap) {
+		val destination = this.destination ?: return
 		val imageData = display.compressBitmap(bitmap)
 		try {
-			val destination = this.destination
 			if (destination is RHMIModel.RaImageModel) {
 				destination.value = imageData
 			} else if (destination is RHMIModel.RaListModel) {
@@ -100,6 +83,7 @@ class FrameUpdater(val display: VirtualDisplayScreenCapture, val modeListener: F
 				destination.value = list
 			}
 		} catch (e: RuntimeException) {
+			Log.w(TAG, "Failed to send map frame to car", e)
 		} catch (e: org.apache.etch.util.TimeoutException) {
 			// don't crash if the phone is unplugged during a frame update
 		}

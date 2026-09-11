@@ -262,6 +262,7 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 			controller.toggleShuffle()
 			// this button has the same TargetModel as the Toolbar PlaybackView's Actions button
 			// so we have to throw Abort to not continue to that screen
+			shuffleButton.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = 0
 			throw RHMIActionAbort()
 		}
 
@@ -400,7 +401,6 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 		val trackText = trackTextScroller.getText()
 		redrawAudiostatePlaylist(trackText)
 		trackModel.value = trackText
-		println("Setting track to $trackText")
 	}
 
 	private fun redrawApp() {

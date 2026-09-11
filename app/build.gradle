@@ -289,6 +289,33 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
+def filteredAmapDir = layout.buildDirectory.dir("filtered-amap-libs")
+def filterAmapSdkJars = tasks.register("filterAmapSdkJars") {
+    def srcDir = file("libs/amap")
+    inputs.dir(srcDir)
+    outputs.dir(filteredAmapDir)
+    doLast {
+        def dest = filteredAmapDir.get().asFile
+        dest.deleteDir()
+        dest.mkdirs()
+        copy {
+            from srcDir
+            include "*.aar"
+            into dest
+        }
+        fileTree(dir: srcDir, include: "*.jar").files.each { File srcJar ->
+            ant.jar(destfile: new File(dest, srcJar.name)) {
+                zipfileset(src: srcJar.absolutePath, excludes: "com/autonavi/base/ae/gmap/glyph/ReflectUtil.class")
+            }
+        }
+    }
+}
+def filteredAmapLibs = objects.fileCollection()
+filteredAmapLibs.from({
+    fileTree(dir: filteredAmapDir.get().asFile, include: ["*.jar", "*.aar"])
+})
+filteredAmapLibs.builtBy(filterAmapSdkJars)
+
 dependencies {
     // https://mvnrepository.com/artifact/cn.hutool/hutool-core
     implementation 'cn.hutool:hutool-core:5.8.25'
@@ -361,8 +388,8 @@ dependencies {
         exclude group: 'com.mapbox.plugin', module: 'maps-overlay'        // not helpful in our case
         exclude group: 'com.mapbox.plugin', module: 'maps-viewport'       // we animate the camera manually
     }
-		// 引用本地高德地图SDK文件
-		amapImplementation fileTree(dir: 'libs/amap', include: ['*.jar', '*.aar'])
+		// 引用本地高德地图SDK文件（去掉 ReflectUtil，改用 amap 源码里的静音实现）
+		amapImplementation filteredAmapLibs
 		// 当前使用的SDK文件：
 		// AMap3DMap_10.1.500_AMapNavi_10.1.500_AMapSearch_9.7.4_AMapLocation_6.5.0_20250814.jar
 		// 包含：3D地图SDK V10.1.500 + 导航SDK V10.1.500 + 搜索SDK V9.7.4 + 定位SDK V6.5.0

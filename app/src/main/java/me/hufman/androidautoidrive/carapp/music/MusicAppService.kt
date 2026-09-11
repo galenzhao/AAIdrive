@@ -94,6 +94,7 @@ class MusicAppService: CarAppService() {
 			}
 			carappMusic?.musicController?.disconnectApp(pause = false)
 			carappMusic?.musicAppDiscovery?.cancelDiscovery()
+			carappMusic?.disconnect()
 		} catch (e: Exception) {
 			Log.w(TAG, "Encountered an exception while shutting down", e)
 		}

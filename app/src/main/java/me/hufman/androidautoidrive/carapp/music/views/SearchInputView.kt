@@ -2,11 +2,14 @@
 
 package me.hufman.androidautoidrive.carapp.music.views
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import io.bimmergestalt.idriveconnectkit.rhmi.RHMIState
 import io.bimmergestalt.idriveconnectkit.rhmi.VisibleCallback
 import com.google.gson.Gson
 import kotlinx.coroutines.*
+import kotlinx.coroutines.android.asCoroutineDispatcher
 import me.hufman.androidautoidrive.AppSettings
 import me.hufman.androidautoidrive.CarThreadExceptionHandler
 import me.hufman.androidautoidrive.UnicodeCleaner
@@ -33,8 +36,9 @@ class SearchInputView(val state: RHMIState,
 		const val SEARCH_HISTORY_QUERY_MAX_COUNT = 8
 	}
 
+	private val rhmiDispatcher = Handler(Looper.myLooper() ?: Looper.getMainLooper()).asCoroutineDispatcher()
 	override val coroutineContext: CoroutineContext
-		get() = Dispatchers.IO + CarThreadExceptionHandler
+		get() = rhmiDispatcher + CarThreadExceptionHandler
 	private var searchJob: Job? = null
 	private var searchQueryHistory: MutableList<String> = LinkedList()
 	private val gson: Gson = Gson()
@@ -133,9 +137,11 @@ class SearchInputView(val state: RHMIState,
 			 */
 			fun search(input: String) {
 				searchJob?.cancel()
-				searchJob = launch(Dispatchers.IO) {
+				searchJob = launch {
 					sendSuggestions(listOf(SEARCH_RESULT_SEARCHING))
-					val suggestions = getSearchResults(input, MAX_RETRIES)
+					val suggestions = withContext(Dispatchers.IO) {
+						getSearchResults(input, MAX_RETRIES)
+					}
 
 					//update suggestions if search job hasn't been cancelled
 					if (isActive) {

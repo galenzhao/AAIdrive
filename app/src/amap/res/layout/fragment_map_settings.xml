@@ -50,6 +50,12 @@
                 android:text="@string/lbl_map_widescreen_crashes" />
         </LinearLayout>
 
+        <include
+            layout="@layout/map_display_layout_settings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:settings="@{settings}" />
+
         <androidx.appcompat.widget.SwitchCompat
             android:checked="@={settings.mapInvertZoom}"
             android:layout_width="match_parent"
@@ -90,35 +96,11 @@
             android:paddingBottom="@dimen/settings_vertical_margin"
             android:text="@string/lbl_map_traffic" />
 
-        <androidx.appcompat.widget.SwitchCompat
-            android:labelFor="@id/txtAmapStyleUrl"
-            android:checked="@={settings.amapCustomStyle}"
+        <include
+            layout="@layout/amap_navi_settings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="48dp"
-            android:paddingBottom="@dimen/settings_vertical_margin"
-            android:text="@string/lbl_amap_custom_style"
-            android:visibility="@{settings.showAmapCustomField}"/>
-
-        <LinearLayout
-            android:orientation="vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="@dimen/settings_vertical_margin"
-            android:visibility="@{settings.amapCustomStyle}">
-
-            <EditText
-                android:id="@+id/txtAmapStyleUrl"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:inputType="textUri"
-                android:importantForAutofill="no"
-                android:hint="amap://styles/..."
-                android:text="@={settings.amapStyleUrl}"
-                tools:ignore="HardcodedText" />
-        </LinearLayout>
+            app:settings="@{settings}" />
 
         <androidx.fragment.app.FragmentContainerView
             android:id="@+id/paneMapQuickDestinations"

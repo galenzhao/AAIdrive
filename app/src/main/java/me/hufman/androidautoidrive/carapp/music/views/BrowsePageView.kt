@@ -1,9 +1,12 @@
 package me.hufman.androidautoidrive.carapp.music.views
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import de.bmw.idrive.BMWRemoting
 import io.bimmergestalt.idriveconnectkit.rhmi.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.android.asCoroutineDispatcher
 import me.hufman.androidautoidrive.CarThreadExceptionHandler
 import me.hufman.androidautoidrive.UnicodeCleaner
 import me.hufman.androidautoidrive.carapp.L
@@ -34,8 +37,10 @@ class BrowsePageView(val state: RHMIState,
 	// remember to clear it when a new previouslySelected is set
 	var oldPreviouslySelectedIndex: Int? = null
 
+	private val rhmiDispatcher = Handler(Looper.myLooper() ?: Looper.getMainLooper()).asCoroutineDispatcher()
+
 	override val coroutineContext: CoroutineContext
-		get() = Dispatchers.IO + CarThreadExceptionHandler
+		get() = rhmiDispatcher + CarThreadExceptionHandler
 
 	companion object {
 		const val LOADING_TIMEOUT = 2000
@@ -144,7 +149,7 @@ class BrowsePageView(val state: RHMIState,
 	fun load() {
 		// start loading data
 		loaderJob?.cancel()
-		loaderJob = launch(Dispatchers.IO) {
+		loaderJob = launch {
 			if (this@BrowsePageView.musicList.isEmpty()) {
 				currentListModel = loadingList
 				showList()

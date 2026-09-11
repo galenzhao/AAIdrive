@@ -22,6 +22,14 @@ interface FullImageInteraction {
 interface FullImageConfig {
 	val invertScroll: Boolean
 	val rhmiDimensions: RHMIDimensions
+	val imageWidth: Int
+		get() = rhmiDimensions.visibleWidth
+	val imageHeight: Int
+		get() = rhmiDimensions.visibleHeight
+	val imageOffsetX: Int
+		get() = 0
+	val imageOffsetY: Int
+		get() = 0
 }
 
 class FullImageView(val state: RHMIState, val title: String, val config: FullImageConfig, val interaction: FullImageInteraction, val frameUpdater: FrameUpdater) {
@@ -38,6 +46,21 @@ class FullImageView(val state: RHMIState, val title: String, val config: FullIma
 	val imageModel = imageComponent.getModel()!!
 	val inputList = state.componentsList.filterIsInstance<RHMIComponent.List>().first()
 	val focusEvent = state.app.events.values.filterIsInstance<RHMIEvent.FocusEvent>().first()
+	private var imageFocused = false
+
+	fun applyImageLayout(updateFrame: Boolean = imageFocused) {
+		val width = config.imageWidth
+		val height = config.imageHeight
+		val positionX = -config.rhmiDimensions.paddingLeft + config.imageOffsetX
+		val positionY = -config.rhmiDimensions.paddingTop + config.imageOffsetY
+		imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_X.id, positionX)
+		imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_Y.id, positionY)
+		imageComponent.setProperty(RHMIProperty.PropertyId.WIDTH.id, width)
+		imageComponent.setProperty(RHMIProperty.PropertyId.HEIGHT.id, height)
+		if (updateFrame) {
+			frameUpdater.showWindow(width, height, imageModel)
+		}
+	}
 
 	fun initWidgets() {
 		// set up the components on the map
@@ -49,14 +72,10 @@ class FullImageView(val state: RHMIState, val title: String, val config: FullIma
 		}
 
 		state.focusCallback = FocusCallback { focused ->
+			imageFocused = focused
 			if (focused) {
 				Log.i(TAG, "Showing map on full screen")
-				imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_X.id, -config.rhmiDimensions.paddingLeft)    // positionX, 180
-				imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_Y.id, -config.rhmiDimensions.paddingTop)    // positionY, 67
-				imageComponent.setProperty(RHMIProperty.PropertyId.WIDTH.id, config.rhmiDimensions.visibleWidth) // 970
-//				get() = rhmiWidth - marginLeft - marginRight, 980-0-5
-				imageComponent.setProperty(RHMIProperty.PropertyId.HEIGHT.id, config.rhmiDimensions.visibleHeight) //default
-				frameUpdater.showWindow(config.rhmiDimensions.visibleWidth, config.rhmiDimensions.visibleHeight, imageModel)
+				applyImageLayout(updateFrame = true)
 
 				focusEvent.triggerEvent(mapOf(0 to inputList.id, 41 to 3))
 			} else {
@@ -117,9 +136,6 @@ class FullImageView(val state: RHMIState, val title: String, val config: FullIma
 		inputList.setProperty(RHMIProperty.PropertyId.BOOKMARKABLE, true)
 
 		imageComponent.setVisible(true)
-		imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_X.id, -config.rhmiDimensions.paddingLeft)    // positionX
-		imageComponent.setProperty(RHMIProperty.PropertyId.POSITION_Y.id, -config.rhmiDimensions.paddingTop)    // positionY
-		imageComponent.setProperty(RHMIProperty.PropertyId.WIDTH.id, config.rhmiDimensions.visibleWidth)
-		imageComponent.setProperty(RHMIProperty.PropertyId.HEIGHT.id, config.rhmiDimensions.visibleHeight)
+		applyImageLayout(updateFrame = false)
 	}
 }

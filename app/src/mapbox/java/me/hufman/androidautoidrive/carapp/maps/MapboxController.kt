@@ -196,6 +196,9 @@ class MapboxController(private val context: Context,
 		animateNavigation()
 	}
 
+	override fun selectRoute(routeId: Int) {
+	}
+
 	override fun recalcNavigation() {
 		navController.currentNavDestination?.let {
 			navController.navigateTo(it)
@@ -278,5 +281,25 @@ class MapboxController(private val context: Context,
 		} else {
 			projection?.drawNavigation(navController)
 		}
+	}
+
+	fun destroy() {
+		handler.removeCallbacks(shutdownMapRunnable)
+		appSettings.callback = null
+		carLocationProvider.callback = null
+		carLocationProvider.stop()
+		try {
+			if (projection?.isShowing == true) {
+				projection?.hide()
+			}
+		} catch (e: Exception) {
+			Log.w(TAG, "Failed to hide Mapbox projection", e)
+		}
+		try {
+			projection?.map?.onDestroy()
+		} catch (e: Exception) {
+			Log.w(TAG, "Failed to destroy Mapbox map", e)
+		}
+		projection = null
 	}
 }

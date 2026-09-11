@@ -50,6 +50,7 @@ class CustomActionsView(val state: RHMIState, val graphicsHelpers: GraphicsHelpe
 				musicController.customAction(action)
 			}
 			if (action is CustomActionDwell) {
+				listComponent.asList()?.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = 0
 				throw RHMIActionAbort()
 			} else {
 				// show the playback view, but don't add it to the stack

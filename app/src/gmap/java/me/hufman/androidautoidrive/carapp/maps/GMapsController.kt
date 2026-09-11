@@ -170,6 +170,9 @@ class GMapsController(private val context: Context,
 		animateNavigation()
 	}
 
+	override fun selectRoute(routeId: Int) {
+	}
+
 	private fun animateNavigation() {
 		// show a camera animation to zoom out to the whole navigation route
 		val dest = navController.currentNavDestination ?: return
@@ -239,5 +242,19 @@ class GMapsController(private val context: Context,
 	override fun stopNavigation() {
 		// clear out previous nav
 		navController.stopNavigation()
+	}
+
+	fun destroy() {
+		handler.removeCallbacks(shutdownMapRunnable)
+		carLocationProvider.callback = null
+		carLocationProvider.stop()
+		try {
+			if (projection?.isShowing == true) {
+				projection?.hide()
+			}
+		} catch (e: Exception) {
+			Log.w(TAG, "Failed to hide GMap projection", e)
+		}
+		projection = null
 	}
 }

@@ -37,8 +37,10 @@ class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfi
 					config)
 		}
 
-		fun createVirtualDisplay(context: Context, imageCapture: ImageReader, dpi:Int = 100, name: String = "IDriveVirtualDisplay"): VirtualDisplay {
+		fun createVirtualDisplay(context: Context, imageCapture: ImageReader, dpi:Int = 100,
+		                         name: String = "IDriveVirtualDisplay"): VirtualDisplay {
 			val displayManager = context.getSystemService(DisplayManager::class.java)
+			Log.i(TAG, "Creating virtual display ${imageCapture.width}x${imageCapture.height} @ ${dpi}dpi")
 			return displayManager.createVirtualDisplay(name,
 					imageCapture.width, imageCapture.height, dpi,
 					imageCapture.surface, DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY,
@@ -51,7 +53,7 @@ class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfi
 	private val origRect = Rect(0, 0, imageCapture.width, imageCapture.height)    // the full size of the main map
 	private var sourceRect = Rect(0, 0, imageCapture.width, imageCapture.height)    // the capture region from the main map
 	private var bitmap = Bitmap.createBitmap(imageCapture.width, imageCapture.height, bitmapConfig)
-	private val resizeFilter = Paint().apply { this.isFilterBitmap = false }
+	private val resizeFilter = Paint().apply { this.isFilterBitmap = true }
 	private var resizedBitmap = Bitmap.createBitmap(imageCapture.width, imageCapture.height, bitmapConfig)
 	private var resizedCanvas = Canvas(resizedBitmap)
 	private var resizedRect = Rect(0, 0, resizedBitmap.width, resizedBitmap.height) // draw to the full region of the resize canvas
@@ -133,5 +135,18 @@ class VirtualDisplayScreenCapture(val imageCapture: ImageReader, val bitmapConfi
 
 	fun onDestroy() {
 		this.imageCapture.setOnImageAvailableListener(null, null)
+		try {
+			this.imageCapture.close()
+		} catch (_: Exception) {}
+		try {
+			if (!bitmap.isRecycled) {
+				bitmap.recycle()
+			}
+		} catch (_: Exception) {}
+		try {
+			if (!resizedBitmap.isRecycled) {
+				resizedBitmap.recycle()
+			}
+		} catch (_: Exception) {}
 	}
 }

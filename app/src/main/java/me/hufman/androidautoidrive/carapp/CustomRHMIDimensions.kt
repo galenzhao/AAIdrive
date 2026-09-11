@@ -2,9 +2,8 @@ package me.hufman.androidautoidrive.carapp
 
 import io.bimmergestalt.idriveconnectkit.RHMIDimensions
 import me.hufman.androidautoidrive.AppSettings
-import me.hufman.androidautoidrive.AppSettingsViewer
 
-class CustomRHMIDimensions(val original: RHMIDimensions, val settingsViewer: AppSettingsViewer): RHMIDimensions {
+class CustomRHMIDimensions(val original: RHMIDimensions, val settingsViewer: AppSettings): RHMIDimensions {
 	override val rhmiWidth: Int
 		get() = settingsViewer[AppSettings.KEYS.DIMENSIONS_RHMI_WIDTH].toIntOrNull() ?: original.rhmiWidth
 	override val rhmiHeight: Int

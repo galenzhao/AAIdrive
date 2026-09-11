@@ -35,6 +35,10 @@ class SettingsToggleList(val component: RHMIComponent.List, val appSettings: Mut
 				AppSettings.KEYS.MAP_BUILDINGS -> L.MAP_BUILDINGS
 				AppSettings.KEYS.MAP_TILT -> L.MAP_TILT
 				AppSettings.KEYS.MAP_CUSTOM_STYLE -> L.MAP_CUSTOM_STYLE
+				AppSettings.KEYS.AMAP_AVOID_CONGESTION -> L.MAP_AVOID_CONGESTION
+				AppSettings.KEYS.AMAP_AVOID_HIGHWAY -> L.MAP_AVOID_HIGHWAY
+				AppSettings.KEYS.AMAP_AVOID_COST -> L.MAP_AVOID_COST
+				AppSettings.KEYS.AMAP_PREFER_HIGHWAY -> L.MAP_PREFER_HIGHWAY
 				else -> ""
 			}
 		}
@@ -44,13 +48,33 @@ class SettingsToggleList(val component: RHMIComponent.List, val appSettings: Mut
 		component.setVisible(true)
 		component.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH.id, "55,0,*")
 		component.getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { index ->
-			val setting = settings.getOrNull(index)
-			if (setting != null) {
-				appSettings[setting] = (!appSettings[setting].toBoolean()).toString()
-			}
-			redraw()
-			throw RHMIActionAbort()
+			onClicked(index)
 		}
+	}
+
+	fun onClicked(index: Int) {
+		val setting = settings.getOrNull(index)
+		if (setting != null) {
+			val enabled = !appSettings[setting].toBoolean()
+			appSettings[setting] = enabled.toString()
+			if (enabled) {
+				when (setting) {
+					AppSettings.KEYS.AMAP_AVOID_HIGHWAY ->
+						appSettings[AppSettings.KEYS.AMAP_PREFER_HIGHWAY] = "false"
+					AppSettings.KEYS.AMAP_PREFER_HIGHWAY -> {
+						appSettings[AppSettings.KEYS.AMAP_AVOID_HIGHWAY] = "false"
+						appSettings[AppSettings.KEYS.AMAP_AVOID_COST] = "false"
+					}
+					AppSettings.KEYS.AMAP_AVOID_COST ->
+						appSettings[AppSettings.KEYS.AMAP_PREFER_HIGHWAY] = "false"
+					else -> {}
+				}
+			}
+		}
+		redraw()
+		// Target 0: stay on this page. The emulator follows HMI even when RA action is aborted.
+		component.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = 0
+		throw RHMIActionAbort()
 	}
 
 	fun redraw() {

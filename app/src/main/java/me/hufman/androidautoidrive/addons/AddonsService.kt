@@ -100,7 +100,7 @@ class AddonsService(val context: Context, val iDriveConnectionStatus: IDriveConn
 						Log.w(TAG, "Error while stopping service ${appInfo.name}: $e")
 					}
 				}
-				boundDataAddons.remove(appInfo)
+				boundConnectionAddons.remove(appInfo)
 			}
 			val dataBindings = ArrayList(boundDataAddons.keys)
 			dataBindings.forEach { appInfo ->
@@ -120,6 +120,7 @@ class AddonsService(val context: Context, val iDriveConnectionStatus: IDriveConn
 				}
 				boundDataAddons.remove(appInfo)
 			}
+			running = false
 		}
 	}
 

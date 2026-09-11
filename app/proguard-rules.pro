@@ -70,5 +70,8 @@
 -dontwarn com.google.auto.**
 -dontwarn com.mapbox.maps.plugin.**
 
+# AMap glyph renderer looks this up from native/Java every frame
+-keep class com.autonavi.base.ae.gmap.glyph.ReflectUtil { *; }
+
 # And from Sentry
 -dontwarn javax.**

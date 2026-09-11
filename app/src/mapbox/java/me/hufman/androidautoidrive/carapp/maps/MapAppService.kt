@@ -35,10 +35,6 @@ class MapAppService: CarAppService() {
 		val appSettings = AppSettingsViewer();
 		val cdsData = CDSDataProvider()
 		cdsData.setConnection(CarInformation.cdsData.asConnection(cdsData))
-//		val carLocationProvider = CombinedLocationProvider(
-//				appSettings, AndroidLocationProvider.getInstance(this),
-//				CdsLocationProvider(cdsData, CarCapabilitiesSummarized(CarInformation()).isId4)
-//		)
 		val dimensions = CustomRHMIDimensions(RHMIDimensions.create(carInformation.capabilities), appSettings)
 
 		val mapAppMode = MapAppMode.build(dimensions, MutableAppSettingsReceiver(this, handler), cdsData, MusicAppMode.TRANSPORT_PORTS.fromPort(iDriveConnectionStatus.port) ?: MusicAppMode.TRANSPORT_PORTS.BT)
@@ -60,23 +56,25 @@ class MapAppService: CarAppService() {
 				CarAppAssetResources(applicationContext, "smartthings"),
 				mapAppMode, carLocationProvider,
 				MapInteractionControllerIntent(applicationContext), mapPlaceSearch, mapScreenCapture)
-		mapApp.applicationContext = applicationContext;
 		this.mapApp = mapApp
 		val handler = this.handler!!
 		mapApp.onCreate(handler)
 	}
 
 	override fun onCarStop() {
-		mapAppMode?.currentNavDestination = null
+		mapAppMode?.resetSessionState()
 
-		// shut down maps functionality right away
-		// when the car disconnects, the threadGMaps handler shuts down
 		try {
+			mapApp?.onDestroy()
+		} catch (e: Exception) {
+			Log.w(TAG, "Encountered an exception while shutting down MapApp frames", e)
+		}
+
+		try {
+			mapController?.destroy()
+			mapListener?.onDestroy()
 			mapScreenCapture?.onDestroy()
 			virtualDisplay?.release()
-			// nothing to stop in mapController
-			mapListener?.onDestroy()
-			mapApp?.onDestroy()
 
 			mapScreenCapture = null
 			virtualDisplay = null
@@ -86,7 +84,6 @@ class MapAppService: CarAppService() {
 			Log.w(TAG, "Encountered an exception while shutting down Maps", e)
 		}
 
-		mapApp?.onDestroy()
 		mapApp?.disconnect()
 		mapApp = null
 	}

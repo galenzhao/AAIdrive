@@ -26,6 +26,7 @@ class NavIntentActivity: AppCompatActivity() {
 	}
 
 	val viewModel by viewModels<NavigationStatusModel> { NavigationStatusModel.Factory(this.applicationContext) }
+	private var handledNavIntent: Intent? = null
 
 	@Suppress("DEPRECATION")
 	override fun onAttachedToWindow() {
@@ -89,8 +90,18 @@ class NavIntentActivity: AppCompatActivity() {
 		return URL_MATCHER.find(query)?.let { it.value }
 	}
 
+	override fun onNewIntent(intent: Intent) {
+		super.onNewIntent(intent)
+		setIntent(intent)
+		handledNavIntent = null
+	}
+
 	override fun onResume() {
 		super.onResume()
+		if (intent === handledNavIntent) {
+			return
+		}
+		handledNavIntent = intent
 		val query = when(intent?.action) {
 			Intent.ACTION_VIEW -> intent?.dataString
 			Intent.ACTION_SEND -> decodeTextQuery(intent?.getStringExtra(Intent.EXTRA_TEXT))

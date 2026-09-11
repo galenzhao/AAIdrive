@@ -335,11 +335,14 @@ class CombinedMusicAppController(val controllers: List<Observable<out MusicAppCo
 
 	override fun disconnect() {
 		this.callback = null
+		browseableController = null
 		controllers.forEach {
 			try {
 				Log.d(TAG, "Disconnecting ${it.value} controller")
 				it.value?.disconnect()
-			} catch (e: Exception) {}
+			} catch (e: Exception) {
+				Log.w(TAG, "Failed to disconnect ${it.value} controller", e)
+			}
 		}
 	}
 }

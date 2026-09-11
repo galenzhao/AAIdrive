@@ -9,11 +9,14 @@ import me.hufman.androidautoidrive.carapp.L
 import me.hufman.androidautoidrive.carapp.RHMIActionAbort
 import me.hufman.androidautoidrive.carapp.maps.MapAppMode
 import me.hufman.androidautoidrive.carapp.maps.MapInteractionController
+import me.hufman.androidautoidrive.carapp.maps.MapNaviBehavior
+import me.hufman.androidautoidrive.carapp.maps.MapRouteChoice
 import me.hufman.androidautoidrive.cds.CDSMetrics
 import me.hufman.androidautoidrive.cds.CDSVehicleUnits
 import me.hufman.androidautoidrive.maps.CarLocationProvider
 import me.hufman.androidautoidrive.maps.LatLong
 import me.hufman.androidautoidrive.maps.MapPlaceSearch
+import me.hufman.androidautoidrive.maps.MapQuickDestination
 import me.hufman.androidautoidrive.maps.MapResult
 import me.hufman.androidautoidrive.utils.truncate
 import kotlin.coroutines.CoroutineContext
@@ -44,12 +47,22 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 	var loaderJob: Job? = null
 	@VisibleForTesting
 	var searchJob: Job? = null      // to expand search results with missing Locations
+	private var destinationJob: Job? = null
 	private var loadingContents: Deferred<List<MapResult>> = CompletableDeferred(emptyList())
 	private var contents: List<MapResult> = emptyList()
+	private var loadingRoutes: Deferred<List<MapRouteChoice>> = CompletableDeferred(emptyList())
+	private var routeContents: List<MapRouteChoice> = emptyList()
+	private var routeMode = false
+	@VisibleForTesting
+	var usesRouteSelectionOverride: Boolean? = null
+	val usesRouteSelection: Boolean
+		get() = usesRouteSelectionOverride ?: MapNaviBehavior.selectRouteBeforeStart
+	private var mapStateId: Int = 0
 	private val listComponent = state.componentsList.filterIsInstance<RHMIComponent.List>().first()
 	private val listModel = listComponent.getModel()!!
 
 	fun initWidgets(fullImageView: FullImageView) {
+		mapStateId = fullImageView.state.id
 		state.getTextModel()?.asRaDataModel()?.value = L.MAP_SEARCH_RESULTS_TITLE
 		state.focusCallback = FocusCallback {
 			if (it) {
@@ -62,32 +75,111 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 		listComponent.setVisible(true)
 		listComponent.setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH, "125,*")
 		listComponent.getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { index ->
-			onSelected(contents.getOrNull(index))
+			if (routeMode) {
+				onRouteSelected(routeContents.getOrNull(index))
+			} else {
+				onSelected(contents.getOrNull(index))
+				if (usesRouteSelection) {
+					setListHmiTarget(0)
+					throw RHMIActionAbort()
+				}
+			}
 		}
-		listComponent.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = fullImageView.state.id
+		setListHmiTarget(if (usesRouteSelection) 0 else mapStateId)
 	}
 	fun setContents(loadingContents: Deferred<List<MapResult>>) {
 		loaderJob?.cancel()
+		routeMode = false
 		this.loadingContents = loadingContents
+		state.getTextModel()?.asRaDataModel()?.value = L.MAP_SEARCH_RESULTS_TITLE
+	}
+
+	fun prepareRouteSelection(): Deferred<List<MapRouteChoice>> {
+		loaderJob?.cancel()
+		routeMode = true
+		routeContents = emptyList()
+		loadingRoutes = mapAppMode.requestRouteSelection()
+		state.getTextModel()?.asRaDataModel()?.value = L.MAP_ROUTE_RESULTS_TITLE
+		listComponent.setEnabled(false)
+		listModel.value = searchingList
+		return loadingRoutes
+	}
+
+	fun startFavoriteDestination(stored: String) {
+		destinationJob?.cancel()
+		val parsed = MapQuickDestination.parseLocation(stored)
+		if (usesRouteSelection) {
+			prepareRouteSelection()
+			if (parsed != null) {
+				interaction.navigateTo(parsed)
+			} else {
+				destinationJob = launch {
+					val location = MapQuickDestination.resolve(stored, mapPlaceSearch)
+					if (location != null) {
+						interaction.navigateTo(location)
+					} else {
+						mapAppMode.completePendingRoutes(emptyList())
+					}
+				}
+			}
+		} else if (parsed != null) {
+			interaction.navigateTo(parsed)
+		} else {
+			destinationJob = launch {
+				MapQuickDestination.resolve(stored, mapPlaceSearch)?.let {
+					interaction.navigateTo(it)
+				}
+			}
+		}
 	}
 
 	fun show() {
 		loaderJob?.cancel()
 		loaderJob = launch {
-			if (!loadingContents.isCompleted) {
-				contents = emptyList()
-				listComponent.setEnabled(false)
-				listModel.value = searchingList
-			}
-			contents = loadingContents.await()
-			if (contents.isEmpty()) {
-				listComponent.setEnabled(false)
-				listModel.value = emptyList
+			if (routeMode) {
+				showRoutes()
 			} else {
-				listComponent.setEnabled(true)
-				listModel.value = MapResultListAdapter(mapAppMode, locationProvider, contents)
+				showPlaces()
 			}
 		}
+	}
+
+	private suspend fun showPlaces() {
+		if (!loadingContents.isCompleted) {
+			contents = emptyList()
+			listComponent.setEnabled(false)
+			listModel.value = searchingList
+		}
+		contents = loadingContents.await()
+		if (contents.isEmpty()) {
+			listComponent.setEnabled(false)
+			listModel.value = emptyList
+		} else {
+			listComponent.setEnabled(true)
+			listModel.value = MapResultListAdapter(mapAppMode, locationProvider, contents)
+		}
+		setListHmiTarget(if (usesRouteSelection) 0 else mapStateId)
+	}
+
+	private suspend fun showRoutes() {
+		if (!loadingRoutes.isCompleted) {
+			routeContents = emptyList()
+			listComponent.setEnabled(false)
+			listModel.value = searchingList
+		}
+		routeContents = loadingRoutes.await()
+		if (routeContents.isEmpty()) {
+			listComponent.setEnabled(false)
+			listModel.value = emptyList
+		} else {
+			listComponent.setEnabled(true)
+			listModel.value = RouteChoiceListAdapter(mapAppMode, routeContents)
+		}
+		setListHmiTarget(mapStateId)
+	}
+
+	private fun setListHmiTarget(stateId: Int) {
+		listComponent.getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = stateId
 	}
 
 	class MapResultListAdapter(mapAppMode: MapAppMode, locationProvider: CarLocationProvider, contents: List<MapResult>): RHMIModel.RaListModel.RHMIListAdapter<MapResult>(2, contents) {
@@ -114,8 +206,36 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 		}
 	}
 
+	class RouteChoiceListAdapter(mapAppMode: MapAppMode, contents: List<MapRouteChoice>): RHMIModel.RaListModel.RHMIListAdapter<MapRouteChoice>(2, contents) {
+		val distanceUnits = mapAppMode.distanceUnits
+		override fun convertRow(index: Int, item: MapRouteChoice): Array<Any> {
+			val minutes = maxOf(1, (item.durationSeconds + 59) / 60)
+			val distanceKm = item.lengthMeters / 1000f
+			val distance = if (distanceUnits == CDSVehicleUnits.Distance.Miles) {
+				"${distanceUnits.fromCarUnit(distanceKm).toInt()} mi"
+			} else {
+				"${distanceKm.toInt()} km"
+			}
+			val summary = "${minutes} min\n$distance"
+			val labels = item.labels.ifBlank { "${index + 1}" }.truncate(ROW_LINE_MAX_LENGTH)
+			val toll = if (item.tollCost > 0) "¥${item.tollCost}" else ""
+			val title = if (toll.isNotEmpty()) "$labels\n$toll" else labels
+			return arrayOf(summary, title)
+		}
+	}
+
+	fun onRouteSelected(route: MapRouteChoice?) {
+		if (route == null) {
+			setListHmiTarget(0)
+			throw RHMIActionAbort()
+		}
+		setListHmiTarget(mapStateId)
+		interaction.selectRoute(route.routeId)
+	}
+
 	fun onSelected(result: MapResult?) {
 		if (result == null) {
+			setListHmiTarget(0)
 			throw RHMIActionAbort()
 		}
 		searchJob?.cancel()
@@ -126,8 +246,13 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 				result
 			}
 			if (locationResult?.location != null) {
-				interaction.navigateTo(locationResult.location)
-				// HMIAction is set up already
+				if (usesRouteSelection) {
+					prepareRouteSelection()
+					interaction.navigateTo(locationResult.location)
+					show()
+				} else {
+					interaction.navigateTo(locationResult.location)
+				}
 			}
 		}
 	}

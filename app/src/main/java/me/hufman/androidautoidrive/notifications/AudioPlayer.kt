@@ -46,6 +46,10 @@ class AudioPlayer(val context: Context) {
 
 	fun requestDuck() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			if (duckRequest != null) {
+				// Already ducking; overlapping notifications must not overwrite the focus request.
+				return
+			}
 			val duckRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).run {
 				setAudioAttributes(AudioAttributes.Builder().run {
 					setUsage(AudioAttributes.USAGE_MEDIA)
@@ -57,12 +61,10 @@ class AudioPlayer(val context: Context) {
 			}
 			val success = audioManager.requestAudioFocus(duckRequest)
 			if (success == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-//				Log.i(TAG, "Successfully ducked audio $success")
-				Thread.sleep(500)   // wait for fadeout before playing notification sound
+				this.duckRequest = duckRequest
 			} else {
 				Log.i(TAG, "Error while ducking audio ($success)")
 			}
-			this.duckRequest = duckRequest
 		} else {
 //			Log.i(TAG, "Skipping audio duck on old phone")
 		}

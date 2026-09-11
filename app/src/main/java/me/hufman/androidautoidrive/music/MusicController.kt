@@ -178,6 +178,12 @@ class MusicController(val context: Context, val handler: Handler): CoroutineScop
 			pauseSync()
 		}
 
+		// Cancel in-flight browse/search so callers do not await forever after disconnect.
+		browseJob?.cancel()
+		browseJob = null
+		searchJob?.cancel()
+		searchJob = null
+
 		// then clear out the saved controller object, to defer future play() calls
 		currentAppController?.disconnect()
 		currentAppController = null
@@ -281,10 +287,20 @@ class MusicController(val context: Context, val handler: Handler): CoroutineScop
 
 	fun browseAsync(directory: MusicMetadata?): Deferred<List<MusicMetadata>> {
 		val results: CompletableDeferred<List<MusicMetadata>> = CompletableDeferred()
-		withController { controller ->
-			browseJob?.cancel()
-			browseJob = launch {
+		val controller = withController { it }
+		if (controller == null) {
+			results.complete(emptyList())
+			return results
+		}
+		browseJob?.cancel()
+		browseJob = launch {
+			try {
 				results.complete(controller.browse(directory))
+			} catch (e: CancellationException) {
+				results.complete(emptyList())
+			} catch (e: Exception) {
+				Log.w(TAG, "Browse failed", e)
+				results.complete(emptyList())
 			}
 		}
 		return results
@@ -292,10 +308,20 @@ class MusicController(val context: Context, val handler: Handler): CoroutineScop
 
 	fun searchAsync(query: String): Deferred<List<MusicMetadata>?> {
 		val results: CompletableDeferred<List<MusicMetadata>?> = CompletableDeferred()
-		withController { controller ->
-			searchJob?.cancel()
-			searchJob = launch {
+		val controller = withController { it }
+		if (controller == null) {
+			results.complete(emptyList())
+			return results
+		}
+		searchJob?.cancel()
+		searchJob = launch {
+			try {
 				results.complete(controller.search(query))
+			} catch (e: CancellationException) {
+				results.complete(emptyList())
+			} catch (e: Exception) {
+				Log.w(TAG, "Search failed", e)
+				results.complete(emptyList())
 			}
 		}
 		return results

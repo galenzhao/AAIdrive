@@ -92,9 +92,11 @@ class MusicSessions(val context: Context) {
 				val oldController = it.value.value
 				val session = sessionsByName[it.key]?.firstOrNull()
 				if (session != null) {
-					if (oldController?.connected != true) {
+					val newToken = MediaSessionCompat.Token.fromToken(session.sessionToken)
+					val oldToken = (oldController as? GenericMusicAppController)?.mediaController?.sessionToken
+					if (oldController?.connected != true || oldToken != newToken) {
 						oldController?.disconnect()
-						val mediaController = MediaControllerCompat(context, MediaSessionCompat.Token.fromToken(session.sessionToken))
+						val mediaController = MediaControllerCompat(context, newToken)
 						it.value.value = GenericMusicAppController(context, mediaController, null)
 					}
 				} else {

@@ -36,8 +36,8 @@ open class MusicMetadata(val mediaId: String? = null,
 					lastLoggedMetadata?.displayTitle != metadata.displayTitle ||
 					lastLoggedMetadata?.displaySubtitle != metadata.displaySubtitle
 			if (changed) {
-				Log.i(TAG, "Parsing MediaMetadata ${metadata.bundle.dumpToString()}")
-				Log.i(TAG, "Playback state: queueId:${playbackState?.activeQueueItemId}")
+				Log.d(TAG, "Parsing MediaMetadata ${metadata.bundle.dumpToString()}")
+				Log.d(TAG, "Playback state: queueId:${playbackState?.activeQueueItemId}")
 				this.lastLoggedMetadata = WeakReference(metadata)
 			}
 			// some apps only set DISPLAY_TITLE and DISPLAY_SUBTITLE

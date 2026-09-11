@@ -56,6 +56,9 @@ class NotificationApp(val iDriveConnectionStatus: IDriveConnectionStatus, val se
 		}
 	}
 	var popupAutoCloser: PopupAutoCloser? = null
+	private var soundDuckRunnable: Runnable? = null
+	private var soundReleaseRunnable: Runnable? = null
+	private var recreateCheckRunnable: Runnable? = null
 
 	var viewPopup: PopupView                // notification about notification
 	val viewList: NotificationListView      // show a list of active notifications
@@ -181,17 +184,28 @@ class NotificationApp(val iDriveConnectionStatus: IDriveConnectionStatus, val se
 	 * so sleeping here is inside a background thread
 	 * */
 	fun checkRecreate() {
-		val interval = 500
-		val waitDelay = 20000
+		val interval = 500L
+		val waitDelay = 20000L
 		if (focusTriggerController.hasFocusedState && focusedStateTracker.getFocused() == null) {
-			for (i in 0..waitDelay step interval) {
-				Thread.sleep(interval.toLong())
-				if (focusedStateTracker.getFocused() != null) {
-					return
+			val handler = popupAutoCloser?.handler ?: return
+			recreateCheckRunnable?.let { handler.removeCallbacks(it) }
+			val deadline = System.currentTimeMillis() + waitDelay
+			val check = object: Runnable {
+				override fun run() {
+					if (focusedStateTracker.getFocused() != null) {
+						recreateCheckRunnable = null
+						return
+					}
+					if (System.currentTimeMillis() >= deadline) {
+						recreateCheckRunnable = null
+						recreateRhmiApp()
+					} else {
+						handler.postDelayed(this, interval)
+					}
 				}
 			}
-			// waited the entire time without getting focused, recreate
-			recreateRhmiApp()
+			recreateCheckRunnable = check
+			handler.postDelayed(check, interval)
 		}
 	}
 
@@ -340,15 +354,30 @@ class NotificationApp(val iDriveConnectionStatus: IDriveConnectionStatus, val se
 
 		// replace the popup autocloser with the new popup state
 		val handler = popupAutoCloser?.handler ?: return        // this should be initialized already, but just in case
+		popupAutoCloser?.cancel()
 		popupAutoCloser = PopupAutoCloser(handler, viewPopup)
 	}
 	fun onDestroy(context: Context) {
+		popupAutoCloser?.cancel()
+		val handler = popupAutoCloser?.handler
+		recreateCheckRunnable?.let { handler?.removeCallbacks(it) }
+		recreateCheckRunnable = null
+		cancelPendingSoundWork()
 		val notificationReceiver = this.notificationBroadcastReceiver
 		if (notificationReceiver != null) {
 			try {
 				context.unregisterReceiver(notificationReceiver)
 			} catch (e: IllegalArgumentException) {}
 		}
+	}
+
+	private fun cancelPendingSoundWork() {
+		val handler = popupAutoCloser?.handler
+		soundDuckRunnable?.let { handler?.removeCallbacks(it) }
+		soundReleaseRunnable?.let { handler?.removeCallbacks(it) }
+		soundDuckRunnable = null
+		soundReleaseRunnable = null
+		audioPlayer.releaseDuck()
 	}
 	fun disconnect() {
 		try {
@@ -390,16 +419,30 @@ class NotificationApp(val iDriveConnectionStatus: IDriveConnectionStatus, val se
 					viewList.showNotification(sbn)
 				}
 
-				val played = if (notificationSettings.shouldPlaySound()) {
-					audioPlayer.requestDuck()
-					audioPlayer.playRingtone(sbn.soundUri)
-				} else false
-
-				if (played) {
-					Thread.sleep(3000)
+				if (notificationSettings.shouldPlaySound()) {
+					val handler = popupAutoCloser?.handler
+					if (handler == null) {
+						readoutInteractions.triggerPopupReadout(sbn)
+					} else {
+						notificationApp.cancelPendingSoundWork()
+						audioPlayer.requestDuck()
+						val release = Runnable {
+							soundReleaseRunnable = null
+							audioPlayer.releaseDuck()
+							readoutInteractions.triggerPopupReadout(sbn)
+						}
+						val play = Runnable {
+							soundDuckRunnable = null
+							audioPlayer.playRingtone(sbn.soundUri)
+							soundReleaseRunnable = release
+							handler.postDelayed(release, 3000)
+						}
+						soundDuckRunnable = play
+						handler.postDelayed(play, 500)
+					}
+				} else {
+					readoutInteractions.triggerPopupReadout(sbn)
 				}
-				audioPlayer.releaseDuck()
-				readoutInteractions.triggerPopupReadout(sbn)
 			}
 		}
 

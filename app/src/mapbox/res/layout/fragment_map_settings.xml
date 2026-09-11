@@ -50,6 +50,12 @@
                 android:text="@string/lbl_map_widescreen_crashes" />
         </LinearLayout>
 
+        <include
+            layout="@layout/map_display_layout_settings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:settings="@{settings}" />
+
         <androidx.appcompat.widget.SwitchCompat
             android:checked="@={settings.mapInvertZoom}"
             android:layout_width="match_parent"

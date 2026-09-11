@@ -6,4 +6,7 @@ class Location(val provider: String) {
 	var altitude: Double = 0.0
 	var speed: Float = 0f
 	var bearing: Float = 0f
+	var time: Long = 0L
+	var elapsedRealtimeNanos: Long = 0L
+	var accuracy: Float = 0f
 }

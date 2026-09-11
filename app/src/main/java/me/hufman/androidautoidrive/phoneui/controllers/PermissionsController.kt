@@ -4,15 +4,18 @@ import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import io.bimmergestalt.idriveconnectkit.android.security.KnownSecurityServices
 import me.hufman.androidautoidrive.MutableAppSettingsReceiver
 import me.hufman.androidautoidrive.music.controllers.SpotifyAppController
 import me.hufman.androidautoidrive.music.spotify.SpotifyAuthStateManager
 import me.hufman.androidautoidrive.phoneui.SpotifyAuthorizationActivity
+import me.hufman.androidautoidrive.utils.PackageManagerCompat.getPackageInfoCompat
 import me.hufman.androidautoidrive.utils.PackageManagerCompat.resolveActivityCompat
 
 class PermissionsController(val activity: Activity) {
@@ -20,6 +23,7 @@ class PermissionsController(val activity: Activity) {
 		const val REQUEST_SMS = 20
 		const val REQUEST_CALENDAR = 30
 		const val REQUEST_LOCATION = 4000
+		const val REQUEST_BACKGROUND_LOCATION = 4001
 		const val REQUEST_BLUETOOTH = 50
 		const val REQUEST_POST_NOTIFICATIONS = 60
 		const val REQUEST_ASSISTANT = 70
@@ -129,8 +133,44 @@ class PermissionsController(val activity: Activity) {
 
 	fun promptLocation() {
 		ActivityCompat.requestPermissions(activity,
-				arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+				arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
 				REQUEST_LOCATION)
+	}
+
+	fun promptLocationIfNeeded() {
+		if (!declaresPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+			return
+		}
+		if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+			promptLocation()
+		}
+	}
+
+	fun promptBackgroundLocationIfNeeded() {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+			return
+		}
+		if (!declaresPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+			return
+		}
+		if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+			return
+		}
+		if (hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+			return
+		}
+		ActivityCompat.requestPermissions(activity,
+				arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+				REQUEST_BACKGROUND_LOCATION)
+	}
+
+	private fun declaresPermission(permission: String): Boolean {
+		return (activity.packageManager.getPackageInfoCompat(activity.packageName, PackageManager.GET_PERMISSIONS)
+				?.requestedPermissions ?: emptyArray()).any { it == permission }
+	}
+
+	private fun hasPermission(permission: String): Boolean {
+		return ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_GRANTED
 	}
 
 	fun promptBluetooth() {

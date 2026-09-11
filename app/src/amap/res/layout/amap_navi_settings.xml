@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+        <variable
+            name="settings"
+            type="me.hufman.androidautoidrive.phoneui.viewmodels.MapSettingsModel" />
+    </data>
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="4dp"
+            android:text="@string/lbl_amap_settings_section" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="@string/lbl_amap_settings_section_hint"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/settings_vertical_margin">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="4dp"
+                android:text="@string/lbl_amap_render_scale" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="8dp"
+                android:text="@string/lbl_amap_render_scale_hint"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_amap_render_scale"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:minHeight="48dp"
+                android:text="@={settings.amapRenderScale}" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/settings_vertical_margin">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="4dp"
+                android:text="@string/lbl_amap_emulator_speed" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="8dp"
+                android:text="@string/lbl_amap_emulator_speed_hint"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_amap_emulator_speed"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:minHeight="48dp"
+                android:text="@={settings.amapEmulatorSpeed}" />
+        </LinearLayout>
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapSelectRoute}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_select_route" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapWgs84ToGcj02}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_wgs84_gcj02" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapAvoidCongestion}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_avoid_congestion" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapAvoidHighway}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_avoid_highway" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapAvoidCost}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_avoid_cost" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapPreferHighway}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_prefer_highway" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapNightAuto}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_night_auto" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapNight}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_night" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapLayout}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_layout" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapLaneInfo}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_lane_info" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapCrossView}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_cross_view" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapTrafficBar}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_traffic_bar" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapCompass}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_compass" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapScale}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_scale" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapMapText}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_map_text" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapLockCar}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_lock_car" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapAutoZoom}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_auto_zoom" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapCameras}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_cameras" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapTrafficLine}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_traffic_line" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapEagle}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_eagle" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:checked="@={settings.amapNaviArrow}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_navi_arrow" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:labelFor="@id/txtAmapStyleUrl"
+            android:checked="@={settings.amapCustomStyle}"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingBottom="@dimen/settings_vertical_margin"
+            android:text="@string/lbl_amap_custom_style"
+            android:visibility="@{settings.showAmapCustomField}"/>
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="@dimen/settings_vertical_margin"
+            android:visibility="@{settings.amapCustomStyle}">
+
+            <EditText
+                android:id="@+id/txtAmapStyleUrl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:inputType="textUri"
+                android:importantForAutofill="no"
+                android:hint="amap://styles/..."
+                android:text="@={settings.amapStyleUrl}"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+    </LinearLayout>
+</layout>

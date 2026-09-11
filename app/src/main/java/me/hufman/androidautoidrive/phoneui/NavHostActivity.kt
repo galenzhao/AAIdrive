@@ -16,12 +16,14 @@ import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.navigation.NavigationView
 import me.hufman.androidautoidrive.*
 import me.hufman.androidautoidrive.databinding.NavHeaderBinding
+import me.hufman.androidautoidrive.phoneui.controllers.PermissionsController
 import me.hufman.androidautoidrive.phoneui.viewmodels.ConnectionStatusModel
 import me.hufman.androidautoidrive.phoneui.viewmodels.viewModels
 
 class NavHostActivity: AppCompatActivity() {
 
 	private val connectionViewModel by viewModels<ConnectionStatusModel> { ConnectionStatusModel.Factory(this.applicationContext) }
+	private var locationPrompted = false
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -65,6 +67,21 @@ class NavHostActivity: AppCompatActivity() {
 		super.onResume()
 
 		startService()
+		promptLocationIfNeeded()
+	}
+
+	private fun promptLocationIfNeeded() {
+		if (locationPrompted) {
+			return
+		}
+		locationPrompted = true
+		window.decorView.post {
+			if (!isFinishing) {
+				val permissions = PermissionsController(this)
+				permissions.promptLocationIfNeeded()
+				permissions.promptBackgroundLocationIfNeeded()
+			}
+		}
 	}
 
 	fun setupNavHeader() {
@@ -114,5 +131,12 @@ class NavHostActivity: AppCompatActivity() {
 		super.onPause()
 		// stop animations in the nav header
 		connectionViewModel.onPause()
+	}
+
+	override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+		if (requestCode == PermissionsController.REQUEST_LOCATION) {
+			PermissionsController(this).promptBackgroundLocationIfNeeded()
+		}
 	}
 }

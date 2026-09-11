@@ -1,5 +1,7 @@
 package me.hufman.androidautoidrive.carapp.assistant
 
+import android.os.Handler
+import android.os.Looper
 import de.bmw.idrive.BMWRemoting
 import de.bmw.idrive.BMWRemotingServer
 import de.bmw.idrive.BaseBMWRemotingClient
@@ -14,6 +16,8 @@ class AssistantApp(val iDriveConnectionStatus: IDriveConnectionStatus, val secur
 	val TAG = "AssistantApp"
 	val carConnection = createRHMIApp()
 	val amAppList = AMAppList<AssistantAppInfo>(carConnection, graphicsHelpers, "me.hufman.androidautoidrive.assistant")
+	private var redrawHandler: Handler? = null
+	private var redrawRunnable: Runnable? = null
 
 	private fun createRHMIApp(): BMWRemotingServer {
 		val carappListener = CarAppListener()
@@ -32,6 +36,12 @@ class AssistantApp(val iDriveConnectionStatus: IDriveConnectionStatus, val secur
 	}
 
 	fun onDestroy() {
+		redrawRunnable?.let { redrawHandler?.removeCallbacks(it) }
+		redrawRunnable = null
+		redrawHandler = null
+		try {
+			IDriveConnection.disconnectEtchConnection(carConnection)
+		} catch (_: Exception) {}
 	}
 
 	inner class CarAppListener: BaseBMWRemotingClient() {
@@ -39,8 +49,20 @@ class AssistantApp(val iDriveConnectionStatus: IDriveConnectionStatus, val secur
 			appId ?: return
 			val assistant = amAppList.getAppInfo(appId) ?: return
 			controller.triggerAssistant(assistant)
-			Thread.sleep(2000)
-			amAppList.redrawApp(assistant)
+			val looper = Looper.myLooper() ?: return
+			val handler = Handler(looper)
+			redrawHandler = handler
+			redrawRunnable?.let { handler.removeCallbacks(it) }
+			val runnable = Runnable {
+				redrawRunnable = null
+				try {
+					synchronized(carConnection) {
+						amAppList.redrawApp(assistant)
+					}
+				} catch (_: Exception) {}
+			}
+			redrawRunnable = runnable
+			handler.postDelayed(runnable, 2000)
 		}
 	}
 }

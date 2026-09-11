@@ -55,6 +55,7 @@ class SearchResultsViewTest {
 	}
 
 	val view = SearchResultsView(searchResultsState, mapPlaceSearch, mapInteractionController, mapAppMode, locationProvider).apply {
+		usesRouteSelectionOverride = false
 		initWidgets(fullImageView)
 	}
 

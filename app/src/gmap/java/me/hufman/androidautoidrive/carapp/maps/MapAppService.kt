@@ -27,9 +27,11 @@ class MapAppService: CarAppService() {
 
 	override fun onCarStart() {
 		Log.i(MainService.TAG, "Starting GMaps")
+		AppSettings.loadSettings(applicationContext)
+		val appSettings = AppSettingsViewer()
 		val cdsData = CDSDataProvider()
 		cdsData.setConnection(CarInformation.cdsData.asConnection(cdsData))
-		val carLocationProvider = CdsLocationProvider(cdsData, false)
+		val carLocationProvider = CdsLocationProvider(appSettings, cdsData, false)
 		val mapAppMode = MapAppMode.build(RHMIDimensions.create(carInformation.capabilities), MutableAppSettingsReceiver(this, handler), cdsData, MusicAppMode.TRANSPORT_PORTS.fromPort(iDriveConnectionStatus.port) ?: MusicAppMode.TRANSPORT_PORTS.BT)
 		this.mapAppMode = mapAppMode
 		val mapScreenCapture = VirtualDisplayScreenCapture.build(mapAppMode)
@@ -53,16 +55,19 @@ class MapAppService: CarAppService() {
 	}
 
 	override fun onCarStop() {
-		mapAppMode?.currentNavDestination = null
+		mapAppMode?.resetSessionState()
 
-		// shut down maps functionality right away
-		// when the car disconnects, the threadGMaps handler shuts down
 		try {
+			mapApp?.onDestroy()
+		} catch (e: Exception) {
+			Log.w(TAG, "Encountered an exception while shutting down MapApp frames", e)
+		}
+
+		try {
+			mapController?.destroy()
+			mapListener?.onDestroy()
 			mapScreenCapture?.onDestroy()
 			virtualDisplay?.release()
-			// nothing to stop in mapController
-			mapListener?.onDestroy()
-			mapApp?.onDestroy()
 
 			mapScreenCapture = null
 			virtualDisplay = null
@@ -72,7 +77,6 @@ class MapAppService: CarAppService() {
 			Log.w(TAG, "Encountered an exception while shutting down Maps", e)
 		}
 
-		mapApp?.onDestroy()
 		mapApp?.disconnect()
 		mapApp = null
 	}

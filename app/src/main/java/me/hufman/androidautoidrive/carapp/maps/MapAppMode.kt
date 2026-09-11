@@ -17,6 +17,7 @@ import me.hufman.androidautoidrive.cds.CDSEventHandler
 import me.hufman.androidautoidrive.cds.CDSVehicleUnits
 import me.hufman.androidautoidrive.maps.LatLong
 import kotlin.math.max
+import kotlinx.coroutines.CompletableDeferred
 
 class DynamicScreenCaptureConfig(val fullDimensions: RHMIDimensions,
                                  val appSettings: MutableAppSettingsObserver,
@@ -59,10 +60,49 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 		// whether the custom map is currently navigating somewhere
 		private var currentNavDestination: LatLong? = null
 			set(value) {
-				value?.let { currentNavDestinationObservable.postValue(it) }
+				currentNavDestinationObservable.postValue(value)
 				field = value
 			}
 		private val currentNavDestinationObservable = MutableLiveData<LatLong?>()
+		private var pendingRoutes = CompletableDeferred<List<MapRouteChoice>>()
+		private var routeSelectionRequested = false
+		/** True from prepareRouteSelection until a route is started, stopped, or the list is empty. */
+		private var routeSelectionPending = false
+
+		fun requestRouteSelection(): CompletableDeferred<List<MapRouteChoice>> {
+			if (!pendingRoutes.isCompleted) {
+				pendingRoutes.complete(emptyList())
+			}
+			pendingRoutes = CompletableDeferred()
+			routeSelectionRequested = true
+			routeSelectionPending = true
+			return pendingRoutes
+		}
+
+		fun completePendingRoutes(routes: List<MapRouteChoice>): Boolean {
+			val requested = routeSelectionRequested
+			routeSelectionRequested = false
+			if (routes.isEmpty()) {
+				routeSelectionPending = false
+			}
+			if (!pendingRoutes.isCompleted) {
+				pendingRoutes.complete(routes)
+			}
+			return requested
+		}
+
+		fun finishRouteSelection() {
+			routeSelectionPending = false
+			routeSelectionRequested = false
+			if (!pendingRoutes.isCompleted) {
+				pendingRoutes.complete(emptyList())
+			}
+		}
+
+		fun resetSessionState() {
+			currentNavDestination = null
+			finishRouteSelection()
+		}
 
 		fun build(fullDimensions: RHMIDimensions,
 		          appSettings: MutableAppSettingsObserver,
@@ -91,6 +131,14 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 	val currentNavDestinationObservable: MutableLiveData<LatLong?>
 		get() = MapAppMode.currentNavDestinationObservable
 
+	val isRouteSelectionPending: Boolean
+		get() = MapAppMode.routeSelectionPending
+
+	fun requestRouteSelection() = MapAppMode.requestRouteSelection()
+	fun completePendingRoutes(routes: List<MapRouteChoice>) = MapAppMode.completePendingRoutes(routes)
+	fun finishRouteSelection() = MapAppMode.finishRouteSelection()
+	fun resetSessionState() = MapAppMode.resetSessionState()
+
 	// navigation distance units
 	val distanceUnits: CDSVehicleUnits.Distance
 		get() = CDSVehicleUnits.fromCdsProperty(cdsData[CDSProperty.VEHICLE_UNITS]).distanceUnits
@@ -106,17 +154,30 @@ class MapAppMode(val fullDimensions: RHMIDimensions,
 				AppSettings.KEYS.MAP_CUSTOM_STYLE else null
 	)
 
-	// the current appDimensions depending on the widescreen setting
-	val appDimensions = UpdatingSidebarRHMIDimensions(fullDimensions) {isWidescreen}
-
-	// the screen dimensions used by FullImageConfig
-	// FullImageConfig uses rhmiDimensions.width/height to set the image capture region
-	override val rhmiDimensions = appDimensions
+	// Fill the configured RHMI canvas (including DIMENSIONS_* used by the emulator).
+	// FullImageView positions at (-padding + offset); default offset cancels padding so the image starts at 0,0.
+	override val rhmiDimensions = fullDimensions
 
 	val isWidescreen: Boolean
 		get() = appSettings[AppSettings.KEYS.MAP_WIDESCREEN].toBoolean()
 	override val invertScroll: Boolean
 		get() = appSettings[AppSettings.KEYS.MAP_INVERT_SCROLL].toBoolean()
+	override val imageWidth: Int
+		get() = appSettings[AppSettings.KEYS.MAP_DISPLAY_WIDTH].toIntOrNull()?.takeIf { it > 0 }
+				?: rhmiDimensions.rhmiWidth
+	override val imageHeight: Int
+		get() = appSettings[AppSettings.KEYS.MAP_DISPLAY_HEIGHT].toIntOrNull()?.takeIf { it > 0 }
+				?: rhmiDimensions.rhmiHeight
+	override val imageOffsetX: Int
+		get() = parseOptionalOffset(AppSettings.KEYS.MAP_DISPLAY_OFFSET_X) ?: rhmiDimensions.paddingLeft
+	override val imageOffsetY: Int
+		get() = parseOptionalOffset(AppSettings.KEYS.MAP_DISPLAY_OFFSET_Y) ?: rhmiDimensions.paddingTop
+
+	private fun parseOptionalOffset(key: AppSettings.KEYS): Int? {
+		val raw = appSettings[key].trim()
+		if (raw.isEmpty()) return null
+		return raw.toIntOrNull()
+	}
 
 	// screen capture quality adjustment
 	fun startInteraction(timeoutMs: Int = DynamicScreenCaptureConfig.RECENT_INTERACTION_THRESHOLD) {

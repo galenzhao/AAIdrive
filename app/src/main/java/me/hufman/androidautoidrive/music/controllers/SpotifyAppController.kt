@@ -202,6 +202,9 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 	val coverArtCache = LruCache<ImageUri, Bitmap>(50)
 	var createQueueMetadataJob: Job? = null
 	var defaultDispatcher = Dispatchers.Default
+	private val controllerJob = SupervisorJob()
+	private val controllerScope = CoroutineScope(controllerJob)
+	private val pendingBrowseResults = Collections.synchronizedList(mutableListOf<CompletableDeferred<List<MusicMetadata>>>())
 	var onQueueLoaded: (() -> Unit)? = null
 	val gson: Gson = Gson()
 
@@ -292,7 +295,7 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 	 * API. If the Web API is not authorized then the [QueueMetadata] is created from the app remote API.
 	 */
 	fun createArtistTopSongsQueueMetadata() {
-		createQueueMetadataJob = GlobalScope.launch(defaultDispatcher) {
+		createQueueMetadataJob = controllerScope.launch(defaultDispatcher) {
 			val artistSongsTemporaryPlaylistStateKey = AppSettings.KEYS.SPOTIFY_ARTIST_SONGS_PLAYLIST_STATE
 			val artistSongsStateJson = appSettings[artistSongsTemporaryPlaylistStateKey]
 			var temporaryPlaylistState: TemporaryPlaylistState? = null
@@ -344,7 +347,7 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 	 * not authorized then the the [QueueMetadata] is created from the app remote API.
 	 */
 	fun createLikedSongsQueueMetadata() {
-		createQueueMetadataJob = GlobalScope.launch(defaultDispatcher) {
+		createQueueMetadataJob = controllerScope.launch(defaultDispatcher) {
 			val queueItems = webApi.getLikedSongs(this@SpotifyAppController) ?: emptyList()
 			if (queueItems.isNotEmpty()) {
 				queueMetadata = QueueMetadata(currentPlayerContext.title, null, queueItems)
@@ -469,7 +472,7 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 	 * to create the [QueueMetadata].
 	 */
 	private fun createPlaylistQueueMetadata(playerContext: PlayerContext, useWebApi: Boolean) {
-		createQueueMetadataJob = GlobalScope.launch(defaultDispatcher) {
+		createQueueMetadataJob = controllerScope.launch(defaultDispatcher) {
 			if (currentPlayerContext.uri != null) {
 				currentPlayerContext = playerContext
 				if (useWebApi) {
@@ -491,7 +494,7 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 	 * Creates the [QueueMetadata] for the podcast playlist.
 	 */
 	private fun createPodcastQueueMetadata(playerContext: PlayerContext) {
-		createQueueMetadataJob = GlobalScope.launch(defaultDispatcher) {
+		createQueueMetadataJob = controllerScope.launch(defaultDispatcher) {
 			if (currentPlayerContext.uri != null) {
 				createQueueMetadataWithAppRemote(playerContext)
 			}
@@ -517,7 +520,7 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 		queueMetadata = QueueMetadata(playerContext.title, playerContext.subtitle, queueItems, mediaId = playerContext.uri)
 		currentPlayerContext = PlayerContext(playerContext.uri, playerContext.title, playerContext.subtitle, playerContext.type)
 
-		GlobalScope.launch(defaultDispatcher) {
+		controllerScope.launch(defaultDispatcher) {
 			val coverArt = getQueueCoverArt()
 			queueMetadata = QueueMetadata(playerContext.title, playerContext.subtitle, queueItems, coverArt, playerContext.uri)
 		}
@@ -756,39 +759,46 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 	override suspend fun browse(directory: MusicMetadata?): List<MusicMetadata> {
 		val isArtistDirectory: (MusicMetadata?) -> Boolean = {it?.mediaId?.contains(":artists:") == true}
 		val deferred = CompletableDeferred<List<MusicMetadata>>()
-		if (directory?.mediaId == null) {
-			remote.contentApi.getRecommendedContentItems("default").setResultCallback { results ->
-				val items = (results?.items ?: emptyArray()).toMutableList()
-				includedRootEntries.fastForEachReverse { item ->
-					if (items.size > 0 && !items.any { it.id == item.id || item.alternativeIds.contains(it.id) }) {
-						items.add(1, item)  // add at #1 because #0 is recently-played
+		pendingBrowseResults.add(deferred)
+		try {
+			if (directory?.mediaId == null) {
+				remote.contentApi.getRecommendedContentItems("default").setResultCallback { results ->
+					val items = (results?.items ?: emptyArray()).toMutableList()
+					includedRootEntries.fastForEachReverse { item ->
+						if (items.size > 0 && !items.any { it.id == item.id || item.alternativeIds.contains(it.id) }) {
+							items.add(1, item)  // add at #1 because #0 is recently-played
+						}
 					}
-				}
 
-				deferred.complete(items.map {
-					SpotifyMusicMetadata.fromBrowseItem(this, it)
-				})
-			}.setErrorCallback {
-				deferred.complete(LinkedList())
-			}
-		} else if (isArtistDirectory(directory)) {
-			GlobalScope.launch(defaultDispatcher) {
-				val artistMediaId = directory.mediaId
-				val artistTopSongs = webApi.getArtistTopSongs(this@SpotifyAppController, artistMediaId) ?: emptyList()
-				if (artistTopSongs.isNotEmpty()) {
-					deferred.complete(artistTopSongs)
-				} else {
-					loadPaginatedItems(directory.toListItem(), { !deferred.isCancelled }) { results ->
-						deferred.complete(removeShufflePlayButtonMetadata(results, artistMediaId))
+					deferred.complete(items.map {
+						SpotifyMusicMetadata.fromBrowseItem(this, it)
+					})
+				}.setErrorCallback {
+					deferred.complete(LinkedList())
+				}
+			} else if (isArtistDirectory(directory)) {
+				controllerScope.launch(defaultDispatcher) {
+					val artistMediaId = directory.mediaId
+					val artistTopSongs = webApi.getArtistTopSongs(this@SpotifyAppController, artistMediaId) ?: emptyList()
+					if (artistTopSongs.isNotEmpty()) {
+						deferred.complete(artistTopSongs)
+					} else {
+						loadPaginatedItems(directory.toListItem(), { !deferred.isCancelled }) { results ->
+							deferred.complete(removeShufflePlayButtonMetadata(results, artistMediaId))
+						}
 					}
 				}
+			} else {
+				loadPaginatedItems(directory.toListItem(), { !deferred.isCancelled }) { results ->
+					deferred.complete(results.filterNot { it.title == SpotifyWebApi.LIKED_SONGS_PLAYLIST_NAME || it.title == SpotifyWebApi.ARTIST_SONGS_PLAYLIST_NAME })
+				}
 			}
-		} else {
-			loadPaginatedItems(directory.toListItem(), { !deferred.isCancelled }) { results ->
-				deferred.complete(results.filterNot { it.title == SpotifyWebApi.LIKED_SONGS_PLAYLIST_NAME || it.title == SpotifyWebApi.ARTIST_SONGS_PLAYLIST_NAME })
-			}
+			return deferred.await()
+		} catch (e: CancellationException) {
+			return emptyList()
+		} finally {
+			pendingBrowseResults.remove(deferred)
 		}
-		return deferred.await()
 	}
 
 	/**
@@ -807,11 +817,13 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 	}
 
 	override suspend fun search(query: String): List<MusicMetadata> {
-		val deferred = CompletableDeferred<List<MusicMetadata>>()
-		GlobalScope.launch(defaultDispatcher) {
-			deferred.complete(webApi.searchForQuery(this@SpotifyAppController, query) ?: emptyList())
+		return try {
+			controllerScope.async(defaultDispatcher) {
+				webApi.searchForQuery(this@SpotifyAppController, query) ?: emptyList()
+			}.await()
+		} catch (e: CancellationException) {
+			emptyList()
 		}
-		return deferred.await()
 	}
 
 	override fun subscribe(callback: (MusicAppController) -> Unit) {
@@ -826,6 +838,15 @@ class SpotifyAppController(context: Context, val remote: SpotifyAppRemote, val w
 		Log.d(TAG, "Disconnecting from Spotify")
 		this.connected = false
 		this.callback = null
+		controllerJob.cancel()
+		synchronized(pendingBrowseResults) {
+			pendingBrowseResults.forEach { deferred ->
+				if (!deferred.isCompleted) {
+					deferred.complete(emptyList())
+				}
+			}
+			pendingBrowseResults.clear()
+		}
 		try {
 			spotifySubscription.cancel()
 		} catch (e: Exception) {

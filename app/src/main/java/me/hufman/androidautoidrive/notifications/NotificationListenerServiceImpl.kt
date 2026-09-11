@@ -104,9 +104,12 @@ class NotificationListenerServiceImpl: NotificationListenerService() {
 
 		// car app listeners
 		Log.i(TAG, "Registering CarNotificationInteraction listeners")
-		carNotificationReceiver.register(this, broadcastReceiver)
-		ContextCompat.registerReceiver(this, broadcastReceiver, IntentFilter(INTENT_STOP_LISTENER), RECEIVER_NOT_EXPORTED)
-		ContextCompat.registerReceiver(this, broadcastReceiver, IntentFilter(INTENT_REQUEST_DATA), RECEIVER_NOT_EXPORTED)
+		val interactionFilter = IntentFilter().apply {
+			addAction(INTENT_INTERACTION)
+			addAction(INTENT_STOP_LISTENER)
+			addAction(INTENT_REQUEST_DATA)
+		}
+		ContextCompat.registerReceiver(this, broadcastReceiver, interactionFilter, RECEIVER_NOT_EXPORTED)
 
 		// automatically shutdown if the car is not connected
 		// but only on phones if we can programmatically start again
@@ -129,6 +132,7 @@ class NotificationListenerServiceImpl: NotificationListenerService() {
 
 	override fun onDestroy() {
 		super.onDestroy()
+		handler.removeCallbacks(autoShutdown)
 		try {
 			this.unregisterReceiver(broadcastReceiver)
 		} catch (e: Exception) {}
@@ -220,7 +224,8 @@ class NotificationListenerServiceImpl: NotificationListenerService() {
 					val customView = customViewTemplate.apply(listenerService, null)
 					customView.collectChildren().filterIsInstance<TextView>()
 						.filter { it.isClickable }
-						.firstOrNull { it.text == key }?.performClick()
+						.firstOrNull { it.text?.toString() == actionName || it.contentDescription?.toString() == actionName }
+						?.performClick()
 				} else {
 					val intent = notification?.notification?.actions?.find { it.title == actionName }?.actionIntent
 					intent?.send()

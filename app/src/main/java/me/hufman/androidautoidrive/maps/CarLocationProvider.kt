@@ -1,6 +1,7 @@
 package me.hufman.androidautoidrive.maps
 
 import android.location.Location
+import android.util.Log
 import com.google.gson.JsonObject
 import com.soywiz.kmem.isNanOrInfinite
 import io.bimmergestalt.idriveconnectkit.CDS
@@ -15,7 +16,6 @@ import me.hufman.androidautoidrive.utils.GsonNullable.tryAsJsonPrimitive
 import java.io.Serializable
 import kotlin.math.*
 import cn.hutool.core.util.CoordinateUtil
-import cn.hutool.core.util.CoordinateUtil.Coordinate
 
 data class LatLong(val latitude: Double, val longitude: Double): Serializable {
 	/**
@@ -55,11 +55,36 @@ data class LatLong(val latitude: Double, val longitude: Double): Serializable {
 }
 data class CarHeading(val heading: Float, val speed: Float): Serializable
 
+object SimulatedCarLocation {
+	const val PROVIDER = "SimulatedLocationProvider"
+	const val LATITUDE = 38.91
+	const val LONGITUDE = 121.61
+
+	fun matches(location: Location?): Boolean {
+		return location?.provider == PROVIDER
+	}
+
+	fun create(): Location {
+		return Location(PROVIDER).also {
+			it.latitude = LATITUDE
+			it.longitude = LONGITUDE
+			it.time = System.currentTimeMillis()
+			it.elapsedRealtimeNanos = android.os.SystemClock.elapsedRealtimeNanos()
+			it.accuracy = 8f
+			it.bearing = 0f
+			it.speed = 0f
+		}
+	}
+}
+
 abstract class CarLocationProvider {
 	public var wgs84ToGcj02: Boolean = false
 
 	var currentLocation: Location? = null
 		protected set
+
+	val isSimulated: Boolean
+		get() = SimulatedCarLocation.matches(currentLocation)
 
 	var callback: ((Location) -> Unit)? = null
 
@@ -71,19 +96,27 @@ abstract class CarLocationProvider {
 	abstract fun stop()
 }
 
-class CdsLocationProvider(val appSettings: AppSettings, val cdsData: CDSData, val id4: Boolean): CarLocationProvider() {
+class CdsLocationProvider(val appSettings: AppSettings?, val cdsData: CDSData, val id4: Boolean): CarLocationProvider() {
+	companion object {
+		private const val TAG = "CdsLocationProvider"
+	}
+
+	constructor(cdsData: CDSData, id4: Boolean): this(null, cdsData, id4)
+
 	var currentLatLong: LatLong? = null
 	var currentHeading: CarHeading? = null
+	private var hasCdsPosition = false
 
 	init {
+		refreshCoordinateMode()
 		parseGPS()
 		parseHeading()
-		cdsData.addEventHandler(CDS.NAVIGATION.GPSPOSITION, 10000, object: CDSEventHandler {
+		cdsData.addEventHandler(CDS.NAVIGATION.GPSPOSITION, 500, object: CDSEventHandler {
 			override fun onPropertyChangedEvent(property: CDSProperty, propertyValue: JsonObject) {
 				parseGPS()
 			}
 		})
-		cdsData.addEventHandler(CDS.NAVIGATION.GPSEXTENDEDINFO, 10000, object: CDSEventHandler {
+		cdsData.addEventHandler(CDS.NAVIGATION.GPSEXTENDEDINFO, 500, object: CDSEventHandler {
 			override fun onPropertyChangedEvent(property: CDSProperty, propertyValue: JsonObject) {
 				parseHeading()
 			}
@@ -91,18 +124,23 @@ class CdsLocationProvider(val appSettings: AppSettings, val cdsData: CDSData, va
 	}
 
 	override fun start() {
-		if(appSettings[AppSettings.KEYS.wgs84ToGcj02].toInt() > 10) {
-			this.wgs84ToGcj02 = true
-		}else{
-			this.wgs84ToGcj02 = false
-		}
+		refreshCoordinateMode()
 		cdsData.subscriptions[CDS.NAVIGATION.GPSPOSITION] = {
 			parseGPS()
 		}
 		cdsData.subscriptions[CDS.NAVIGATION.GPSEXTENDEDINFO] = {
 			parseHeading()
 		}
-		sendCallback()
+		if (hasCdsPosition) {
+			parseGPS()
+		} else {
+			applySimulatedLocation()
+		}
+	}
+
+	private fun refreshCoordinateMode() {
+		val raw = appSettings?.get(AppSettings.KEYS.wgs84ToGcj02)?.trim().orEmpty()
+		wgs84ToGcj02 = raw.equals("true", ignoreCase = true) || (raw.toIntOrNull() ?: 0) != 0
 	}
 
 	private fun parseGPS() {
@@ -121,6 +159,7 @@ class CdsLocationProvider(val appSettings: AppSettings, val cdsData: CDSData, va
 					currentLatLong = LatLong(latitude, longitude)
 				}
 			}
+			hasCdsPosition = true
 			onLocationUpdate()
 		}
 	}
@@ -134,8 +173,16 @@ class CdsLocationProvider(val appSettings: AppSettings, val cdsData: CDSData, va
 		val validSpeed = if (speed < 4000) speed else 0
 		if (heading != null) {
 			currentHeading = CarHeading(heading.toFloat() * headingAdj, validSpeed.toFloat() / 3.6f)
-			onLocationUpdate()
+			if (hasCdsPosition) {
+				onLocationUpdate()
+			}
 		}
+	}
+
+	private fun applySimulatedLocation() {
+		Log.i(TAG, "No CDS GPS yet, using simulated location ${SimulatedCarLocation.LATITUDE},${SimulatedCarLocation.LONGITUDE}")
+		currentLocation = SimulatedCarLocation.create()
+		sendCallback()
 	}
 
 	private fun onLocationUpdate() {
@@ -145,6 +192,9 @@ class CdsLocationProvider(val appSettings: AppSettings, val cdsData: CDSData, va
 			Location("CdsLocationProvider").also {
 				it.latitude = latLong.latitude
 				it.longitude = latLong.longitude
+				it.time = System.currentTimeMillis()
+				it.elapsedRealtimeNanos = android.os.SystemClock.elapsedRealtimeNanos()
+				it.accuracy = 8f
 				if (heading != null) {
 					it.bearing = heading.heading
 					it.speed = heading.speed
@@ -159,42 +209,5 @@ class CdsLocationProvider(val appSettings: AppSettings, val cdsData: CDSData, va
 	override fun stop() {
 		cdsData.subscriptions[CDS.NAVIGATION.GPSPOSITION] = null
 		cdsData.subscriptions[CDS.NAVIGATION.GPSEXTENDEDINFO] = null
-	}
-}
-
-class CombinedLocationProvider(val appSettings: AppSettings,
-                               val phoneLocationProvider: CarLocationProvider,
-                               val carLocationProvider: CarLocationProvider): CarLocationProvider() {
-	private val preferPhoneLocation: Boolean
-		get() = appSettings[AppSettings.KEYS.MAP_USE_PHONE_GPS].toBoolean()
-
-	init {
-		currentLocation = carLocationProvider.currentLocation ?: phoneLocationProvider.currentLocation
-		phoneLocationProvider.callback = {
-			currentLocation = it
-			sendCallback()
-		}
-		carLocationProvider.callback = {
-			currentLocation = it
-			sendCallback()
-		}
-	}
-
-	override fun start() {
-		if (preferPhoneLocation) {
-			phoneLocationProvider.start()
-		} else {
-			if(appSettings[AppSettings.KEYS.wgs84ToGcj02].toInt() > 10) {
-				carLocationProvider.wgs84ToGcj02 = true
-			}else{
-				carLocationProvider.wgs84ToGcj02 = false
-			}
-			carLocationProvider.start()
-		}
-	}
-
-	override fun stop() {
-		phoneLocationProvider.stop()
-		carLocationProvider.stop()
 	}
 }

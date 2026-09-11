@@ -55,6 +55,14 @@ class PlaceSearchView(state: RHMIState, val mapPlaceSearch: MapPlaceSearch, val 
 		}
 		interaction.stopNavigation()
 		searchJob?.cancel()
+		val useRoutes = searchResultsView?.usesRouteSelection == true
+		// Set HMI target synchronously — the car follows it when this RA callback returns.
+		if (useRoutes) {
+			searchResultsView?.prepareRouteSelection()
+			inputComponent.getSuggestAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = searchResultsView?.state?.id ?: 0
+		} else {
+			inputComponent.getSuggestAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = fullImageView?.state?.id ?: 0
+		}
 		searchJob = launch {
 			val locationResult = if (item.location == null) {
 				mapPlaceSearch.resultInformationAsync(item.id).await()    // ask for LatLong, to navigate to
@@ -63,7 +71,10 @@ class PlaceSearchView(state: RHMIState, val mapPlaceSearch: MapPlaceSearch, val 
 			}
 			if (locationResult?.location != null) {
 				interaction.navigateTo(locationResult.location)
-				inputComponent.getSuggestAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = fullImageView?.state?.id ?: 0
+			} else if (useRoutes) {
+				searchResultsView?.let {
+					it.mapAppMode.completePendingRoutes(emptyList())
+				}
 			}
 		}
 	}

@@ -1,8 +1,11 @@
 package me.hufman.androidautoidrive.carapp.music.views
 
+import android.os.Handler
+import android.os.Looper
 import io.bimmergestalt.idriveconnectkit.rhmi.RHMIState
 import io.bimmergestalt.idriveconnectkit.rhmi.VisibleCallback
 import kotlinx.coroutines.*
+import kotlinx.coroutines.android.asCoroutineDispatcher
 import me.hufman.androidautoidrive.CarThreadExceptionHandler
 import me.hufman.androidautoidrive.UnicodeCleaner
 import me.hufman.androidautoidrive.carapp.InputState
@@ -17,8 +20,9 @@ class FilterInputView(val state: RHMIState,
 	val FILTERRESULT_LOADING = MusicMetadata(mediaId="__LOADING__", title=L.MUSIC_BROWSE_LOADING)
 	val FILTERRESULT_EMPTY = MusicMetadata(mediaId="__EMPTY__", title=L.MUSIC_BROWSE_EMPTY)
 
+	private val rhmiDispatcher = Handler(Looper.myLooper() ?: Looper.getMainLooper()).asCoroutineDispatcher()
 	override val coroutineContext: CoroutineContext
-		get() = Dispatchers.IO + CarThreadExceptionHandler
+		get() = rhmiDispatcher + CarThreadExceptionHandler
 
 	var loadingJob: Job? = null
 	var musicList: List<MusicMetadata> = emptyList()
@@ -30,8 +34,10 @@ class FilterInputView(val state: RHMIState,
 		if (browsePageModel.contents.isCompleted) {
 			musicList = browsePageModel.contents.getCompleted() ?: emptyList()
 		} else {
-			loadingJob = launch(Dispatchers.IO) {
-				musicList = browsePageModel.contents.await() ?: emptyList()
+			loadingJob = launch {
+				musicList = withContext(Dispatchers.IO) {
+					browsePageModel.contents.await() ?: emptyList()
+				}
 				// update suggestions, if any input exists
 				inputState?.input?.also {
 					inputState?.onEntry(it)

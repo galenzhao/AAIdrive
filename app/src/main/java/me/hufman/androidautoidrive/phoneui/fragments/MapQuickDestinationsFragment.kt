@@ -16,6 +16,7 @@ import me.hufman.androidautoidrive.R
 import me.hufman.androidautoidrive.StoredList
 import me.hufman.androidautoidrive.databinding.MapQuickDestinationsBinding
 import me.hufman.androidautoidrive.maps.MapPlaceSearch
+import me.hufman.androidautoidrive.maps.MapQuickDestination
 import me.hufman.androidautoidrive.maps.PlaceSearchProvider
 import me.hufman.androidautoidrive.phoneui.adapters.DataBoundArrayAdapter
 import me.hufman.androidautoidrive.phoneui.adapters.DataBoundListAdapter
@@ -56,7 +57,7 @@ class MapQuickDestinationsFragment: Fragment() {
 		autocomplete.onItemClickListener = AdapterView.OnItemClickListener { adapterView, _, index, _ ->
 			val item = adapterView.getItemAtPosition(index) as? MapResultViewModel
 			item?.also {
-				controller.currentInput.value = it.result.toString()
+				controller.currentInput.value = MapQuickDestination.format(it.result)
 				controller.addItem()
 			}
 		}

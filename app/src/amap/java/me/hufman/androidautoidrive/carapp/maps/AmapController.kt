@@ -39,6 +39,7 @@ class AmapController(
     private fun onLocationUpdate(location: Location) {
         currentLocation = location
         Log.d(TAG, "Location updated: ${location.latitude}, ${location.longitude}")
+        navController.onCarLocationUpdate(location)
     }
 
     override fun showMap() {
@@ -52,21 +53,25 @@ class AmapController(
     }
 
     override fun zoomIn(steps: Int) {
-        Log.i(TAG, "Zoom in by $steps steps (handled by AMapNaviView)")
-        mapAppMode.startInteraction()
-        // AMapNaviView handles its own zoom controls
+        Log.i(TAG, "Zoom in by $steps steps")
+        navController.zoomIn(steps)
     }
 
     override fun zoomOut(steps: Int) {
-        Log.i(TAG, "Zoom out by $steps steps (handled by AMapNaviView)")
-        mapAppMode.startInteraction()
-        // AMapNaviView handles its own zoom controls
+        Log.i(TAG, "Zoom out by $steps steps")
+        navController.zoomOut(steps)
     }
 
     override fun navigateTo(dest: LatLong) {
         Log.i(TAG, "Starting navigation to $dest")
         mapAppMode.startInteraction()
         navController.navigateTo(dest)
+    }
+
+    override fun selectRoute(routeId: Int) {
+        Log.i(TAG, "Selecting route $routeId")
+        mapAppMode.startInteraction()
+        navController.selectRoute(routeId)
     }
 
     override fun recalcNavigation() {
@@ -81,6 +86,8 @@ class AmapController(
 
     fun destroy() {
         Log.i(TAG, "Destroying AmapController")
-        // AmapNaviController handles its own cleanup
+        carLocationProvider.callback = null
+        carLocationProvider.stop()
+        navController.destroy()
     }
 }

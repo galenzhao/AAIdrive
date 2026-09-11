@@ -116,6 +116,9 @@ class CdsLocationProviderTest {
 		provider.start()
 		assertNotNull(cdsData.subscriptions[CDS.NAVIGATION.GPSPOSITION])
 		assertNotNull(cdsData.subscriptions[CDS.NAVIGATION.GPSEXTENDEDINFO])
+		assertTrue(provider.isSimulated)
+		assertEquals(SimulatedCarLocation.LATITUDE, provider.currentLocation?.latitude)
+		assertEquals(SimulatedCarLocation.LONGITUDE, provider.currentLocation?.longitude)
 
 		cdsData.onPropertyChangedEvent(CDS.NAVIGATION.GPSPOSITION, gpsPosition)
 		cdsData.onPropertyChangedEvent(CDS.NAVIGATION.GPSEXTENDEDINFO, gpsHeading)
@@ -129,6 +132,7 @@ class CdsLocationProviderTest {
 		assertEquals(-12.345678, provider.currentLocation?.longitude)
 		assertEquals(-144f, provider.currentLocation?.bearing)
 		assertEquals(0f, provider.currentLocation?.speed)
+		assertFalse(provider.isSimulated)
 
 		// test if location updates still come through
 		provider.stop()

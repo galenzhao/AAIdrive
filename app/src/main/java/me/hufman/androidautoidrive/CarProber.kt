@@ -128,6 +128,7 @@ class CarProber(val securityAccess: SecurityAccess, val settings: AppSettings, v
 		var errorMessage: String? = null
 		var errorException: Throwable? = null
 		for (brand in listOf("bmw", "mini", "j29")) {
+			var conn: BMWRemotingServer? = null
 			try {
 				val cert = when(brand) {
 					"bmw" -> bmwCert
@@ -135,7 +136,7 @@ class CarProber(val securityAccess: SecurityAccess, val settings: AppSettings, v
 					else -> j29Cert
 				} ?: continue       // j29Cert is optional cdsBaseApp from MyBMW
 				val signedCert = CertMangling.mergeBMWCert(cert, securityAccess.fetchBMWCerts(brandHint = brand))
-				val conn = IDriveConnection.getEtchConnection(host, port, BaseBMWRemotingClient())
+				conn = IDriveConnection.getEtchConnection(host, port, BaseBMWRemotingClient())
 				val sas_challenge = conn.sas_certificate(signedCert)
 				val sas_login = securityAccess.signChallenge(challenge = sas_challenge)
 				conn.sas_login(sas_login)
@@ -169,11 +170,23 @@ class CarProber(val securityAccess: SecurityAccess, val settings: AppSettings, v
 					success = true
 					break
 				}
+				try {
+					IDriveConnection.disconnectEtchConnection(conn)
+				} catch (_: Exception) {}
+				if (carConnection === conn) {
+					carConnection = null
+				}
 			} catch (e: Exception) {
 				// Car rejected this cert
 				errorMessage = e.message
 				errorException = e
 				Log.w(TAG, "Exception while probing car", e)
+				try {
+					conn?.let { IDriveConnection.disconnectEtchConnection(it) }
+				} catch (_: Exception) {}
+				if (carConnection === conn) {
+					carConnection = null
+				}
 			}
 		}
 		if (!success) {

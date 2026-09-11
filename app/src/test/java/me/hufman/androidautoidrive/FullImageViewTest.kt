@@ -32,17 +32,48 @@ class FullImageViewTest {
 	@Test
 	fun testInitialize() {
 		val appSettings = MockAppSettings()
-		appSettings[AppSettings.KEYS.MAP_WIDESCREEN] = "false"
 		val fullImageConfig = MapAppMode.build(GenericRHMIDimensions(1280, 480), appSettings, CDSDataProvider(), MusicAppMode.TRANSPORT_PORTS.USB)
 		val fullImageView = FullImageView(this.fullImageState, "Map", fullImageConfig, mock(), mock())
 		fullImageView.initWidgets()
-		assertEquals(743, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.WIDTH.id]?.value)
+		assertEquals(1280, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.WIDTH.id]?.value)
 		assertEquals(480, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.HEIGHT.id]?.value)
+		assertEquals(0, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.POSITION_X.id]?.value)
+		assertEquals(0, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.POSITION_Y.id]?.value)
+	}
 
+	@Test
+	fun testCustomSizeAndOffset() {
+		val appSettings = MockAppSettings()
 		appSettings[AppSettings.KEYS.MAP_WIDESCREEN] = "true"
+		appSettings[AppSettings.KEYS.MAP_DISPLAY_WIDTH] = "900"
+		appSettings[AppSettings.KEYS.MAP_DISPLAY_HEIGHT] = "400"
+		appSettings[AppSettings.KEYS.MAP_DISPLAY_OFFSET_X] = "20"
+		appSettings[AppSettings.KEYS.MAP_DISPLAY_OFFSET_Y] = "-10"
+		val fullImageConfig = MapAppMode.build(GenericRHMIDimensions(1280, 480), appSettings, CDSDataProvider(), MusicAppMode.TRANSPORT_PORTS.USB)
+		val fullImageView = FullImageView(this.fullImageState, "Map", fullImageConfig, mock(), mock())
 		fullImageView.initWidgets()
-		assertEquals(1211, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.WIDTH.id]?.value)
-		assertEquals(480, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.HEIGHT.id]?.value)
+		assertEquals(900, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.WIDTH.id]?.value)
+		assertEquals(400, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.HEIGHT.id]?.value)
+		assertEquals(-fullImageConfig.rhmiDimensions.paddingLeft + 20, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.POSITION_X.id]?.value)
+		assertEquals(-fullImageConfig.rhmiDimensions.paddingTop - 10, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.POSITION_Y.id]?.value)
+	}
+
+	@Test
+	fun testDefaultFillsConfiguredScreen() {
+		val appSettings = MockAppSettings()
+		appSettings[AppSettings.KEYS.DIMENSIONS_RHMI_WIDTH] = "1540"
+		appSettings[AppSettings.KEYS.DIMENSIONS_RHMI_HEIGHT] = "540"
+		appSettings[AppSettings.KEYS.DIMENSIONS_PADDING_LEFT] = "180"
+		appSettings[AppSettings.KEYS.DIMENSIONS_PADDING_TOP] = "67"
+		appSettings[AppSettings.KEYS.DIMENSIONS_MARGIN_RIGHT] = "0"
+		val original = GenericRHMIDimensions(1280, 480)
+		val fullImageConfig = MapAppMode.build(CustomRHMIDimensions(original, appSettings), appSettings, CDSDataProvider(), MusicAppMode.TRANSPORT_PORTS.USB)
+		val fullImageView = FullImageView(this.fullImageState, "Map", fullImageConfig, mock(), mock())
+		fullImageView.initWidgets()
+		assertEquals(1540, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.WIDTH.id]?.value)
+		assertEquals(540, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.HEIGHT.id]?.value)
+		assertEquals(0, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.POSITION_X.id]?.value)
+		assertEquals(0, fullImageView.imageComponent.properties[RHMIProperty.PropertyId.POSITION_Y.id]?.value)
 	}
 
 	@Test

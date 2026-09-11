@@ -13,6 +13,21 @@ data class AmapSettings(
 		val mapTilt: Boolean,
 		val mapCustomStyle: Boolean,
 		val amapStyleUrl: String,
+		val nightAuto: Boolean,
+		val night: Boolean,
+		val layout: Boolean,
+		val laneInfo: Boolean,
+		val crossView: Boolean,
+		val trafficBar: Boolean,
+		val compass: Boolean,
+		val scale: Boolean,
+		val mapText: Boolean,
+		val lockCar: Boolean,
+		val autoZoom: Boolean,
+		val cameras: Boolean,
+		val trafficLine: Boolean,
+		val eagle: Boolean,
+		val naviArrow: Boolean,
 ) {
 	companion object {
 		fun build(appSettings: AppSettings, location: LatLong?): AmapSettings {
@@ -26,17 +41,22 @@ data class AmapSettings(
 					appSettings[AppSettings.KEYS.MAP_TILT].toBoolean(),
 					appSettings[AppSettings.KEYS.MAP_CUSTOM_STYLE].toBoolean(),
 					appSettings[AppSettings.KEYS.AMAP_STYLE_URL],
+					appSettings[AppSettings.KEYS.AMAP_NIGHT_AUTO].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_NIGHT].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_LAYOUT].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_LANE_INFO].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_CROSS_VIEW].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_TRAFFIC_BAR].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_COMPASS].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_SCALE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_MAP_TEXT].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_LOCK_CAR].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_AUTO_ZOOM].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_CAMERAS].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_TRAFFIC_LINE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_EAGLE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_NAVI_ARROW].toBoolean(),
 			)
 		}
 	}
-
-	val mapStyleType: Int
-		get() = when {
-			mapCustomStyle && amapStyleUrl.isNotBlank() -> {
-				// Custom style handling would go here
-				if (mapDaytime) 1 else 2 // Normal or Night
-			}
-			mapSatellite -> 2 // Satellite
-			else -> if (mapDaytime) 1 else 2 // Normal or Night
-		}
 }

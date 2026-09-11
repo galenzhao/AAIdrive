@@ -163,6 +163,11 @@ object L {
 	val MAP_BUILDINGS by StringResourceDelegate("Show 3D buildings")
 	val MAP_TILT by StringResourceDelegate("Tilt map")
 	val MAP_CUSTOM_STYLE by StringResourceDelegate("Use custom map style")
+	val MAP_AVOID_CONGESTION by StringResourceDelegate("Avoid congestion")
+	val MAP_AVOID_HIGHWAY by StringResourceDelegate("Avoid highways")
+	val MAP_AVOID_COST by StringResourceDelegate("Avoid tolls")
+	val MAP_PREFER_HIGHWAY by StringResourceDelegate("Prefer highways")
+	val MAP_ROUTE_RESULTS_TITLE by StringResourceDelegate("Choose Route")
 
 	fun loadResources(context: Context, locale: Locale? = null) {
 		val thisContext = if (locale == null) { context } else {
