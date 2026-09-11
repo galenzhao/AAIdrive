@@ -38,14 +38,23 @@ object MapQuickDestination {
 		}
 	}
 
-	suspend fun resolve(stored: String, mapPlaceSearch: MapPlaceSearch): LatLong? {
-		parseLocation(stored)?.let { return it }
+	/**
+	 * Resolve a stored favorite / quick destination into a navigable [MapResult]
+	 * (location + best-effort name / poi id).
+	 */
+	suspend fun resolve(stored: String, mapPlaceSearch: MapPlaceSearch): MapResult? {
+		parseLocation(stored)?.let { loc ->
+			val label = stored.lineSequence().map { it.trim() }
+					.firstOrNull { it.isNotEmpty() && !isCoordinateLine(it) }
+					.orEmpty()
+			return MapResult(id = "", name = label, location = loc)
+		}
 		val query = searchQuery(stored)
 		if (query.isBlank()) {
 			return null
 		}
 		val first = mapPlaceSearch.searchLocationsAsync(query).await().firstOrNull() ?: return null
-		return first.location ?: mapPlaceSearch.resultInformationAsync(first.id).await()?.location
+		return mapPlaceSearch.resolveNavigable(first)
 	}
 
 	private fun isCoordinateLine(line: String): Boolean {

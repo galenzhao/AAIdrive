@@ -3,11 +3,9 @@ package me.hufman.androidautoidrive.maps
 import android.content.Context
 import android.util.Log
 import cn.hutool.core.util.CoordinateUtil
-import com.amap.api.location.AMapLocationClient
 import com.amap.api.services.core.AMapException
 import com.amap.api.services.core.LatLonPoint
 import com.amap.api.services.core.PoiItem
-import com.amap.api.services.core.ServiceSettings
 import com.amap.api.services.help.Inputtips
 import com.amap.api.services.help.InputtipsQuery
 import com.amap.api.services.help.Tip
@@ -15,6 +13,7 @@ import com.amap.api.services.poisearch.PoiResult
 import com.amap.api.services.poisearch.PoiSearch
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import me.hufman.androidautoidrive.carapp.maps.AmapSdkBootstrap
 import me.hufman.androidautoidrive.carapp.maps.TAG
 
 fun LatLonPoint.toLatLong(): LatLong {
@@ -74,11 +73,12 @@ class AmapPlaceSearch(
 		val locationProvider: CarLocationProvider
 ): MapPlaceSearch {
 	companion object {
+		/** Match radius when resolving Inputtips that lack poiID. */
+		private const val POI_ENRICH_BOUND_M = 300
+		private const val POI_ENRICH_MAX_KM = 0.2
+
 		fun getInstance(context: Context, locationProvider: CarLocationProvider): AmapPlaceSearch {
-			AMapLocationClient.updatePrivacyShow(context, true, true)
-			AMapLocationClient.updatePrivacyAgree(context, true)
-			ServiceSettings.updatePrivacyShow(context, true, true)
-			ServiceSettings.updatePrivacyAgree(context, true)
+			AmapSdkBootstrap.prepare(context)
 			locationProvider.start()
 			return AmapPlaceSearch(context.applicationContext, locationProvider)
 		}
@@ -177,5 +177,71 @@ class AmapPlaceSearch(
 		}
 
 		return result
+	}
+
+	/**
+	 * Inputtips often return lat/lng without [Tip.getPoiID]. Re-running tips rarely helps;
+	 * keyword+bound [PoiSearch] usually returns a real poiId near the tip point.
+	 */
+	override fun enrichMissingPoiIdAsync(result: MapResult): Deferred<MapResult> {
+		val loc = result.location
+		if (result.id.isNotBlank() || result.name.isBlank() || loc == null) {
+			return CompletableDeferred(result)
+		}
+		val deferred = CompletableDeferred<MapResult>()
+		// Tip/search coordinates from AMap are already GCJ-02.
+		val point = LatLonPoint(loc.latitude, loc.longitude)
+		try {
+			val query = PoiSearch.Query(result.name, "", "")
+			query.pageSize = 10
+			query.pageNum = 1
+			query.setDistanceSort(true)
+			query.location = point
+			val poiSearch = PoiSearch(context, query)
+			poiSearch.bound = PoiSearch.SearchBound(point, POI_ENRICH_BOUND_M)
+			retain(poiSearch)
+			Log.i(TAG, "Enriching blank poiId for ${result.name} near $loc")
+			poiSearch.setOnPoiSearchListener(object : PoiSearch.OnPoiSearchListener {
+				override fun onPoiSearched(poiResult: PoiResult?, errorCode: Int) {
+					release(poiSearch)
+					if (errorCode == AMapException.CODE_AMAP_SUCCESS) {
+						val pois = poiResult?.pois.orEmpty()
+						val match = pois.firstOrNull { poi ->
+							val id = poi.poiId
+							val pLoc = poi.latLonPoint?.toLatLong()
+							!id.isNullOrBlank() && pLoc != null && pLoc.distanceFrom(loc) <= POI_ENRICH_MAX_KM
+						} ?: pois.firstOrNull { poi ->
+							!poi.poiId.isNullOrBlank() && poi.title.equals(result.name, ignoreCase = true)
+						} ?: pois.firstOrNull { !it.poiId.isNullOrBlank() }
+						val poiId = match?.poiId
+						if (!poiId.isNullOrBlank()) {
+							Log.i(TAG, "Enriched poiId=$poiId for ${result.name}")
+							deferred.complete(
+								result.copy(
+									id = poiId,
+									address = result.address
+										?: match.snippet?.takeIf { it.isNotBlank() }
+										?: match.adName?.takeIf { it.isNotBlank() },
+								)
+							)
+							return
+						}
+						Log.w(TAG, "No POI match to enrich poiId for ${result.name} (${pois.size} candidates)")
+					} else {
+						Log.w(TAG, "POI enrich search failed for ${result.name}: errorCode=$errorCode")
+					}
+					deferred.complete(result)
+				}
+
+				override fun onPoiItemSearched(poiItem: PoiItem?, errorCode: Int) {
+					// keyword bound search uses onPoiSearched
+				}
+			})
+			poiSearch.searchPOIAsyn()
+		} catch (e: Exception) {
+			Log.w(TAG, "Failed to start POI enrich for ${result.name}: $e")
+			deferred.complete(result)
+		}
+		return deferred
 	}
 }

@@ -14,7 +14,6 @@ import android.view.View
 import android.view.WindowManager
 import kotlin.math.roundToInt
 import com.amap.api.location.AMapLocation
-import com.amap.api.location.AMapLocationClient
 import com.amap.api.navi.*
 import com.amap.api.navi.enums.NaviType
 import com.amap.api.navi.model.AMapCalcRouteResult
@@ -29,7 +28,7 @@ import com.amap.api.navi.model.AMapServiceAreaInfo
 import com.amap.api.navi.model.AimLessModeCongestionInfo
 import com.amap.api.navi.model.AimLessModeStat
 import com.amap.api.navi.model.NaviInfo
-import com.amap.api.navi.model.NaviLatLng
+import com.amap.api.navi.enums.AMapNaviParallelRoadStatus
 import me.hufman.androidautoidrive.*
 import me.hufman.androidautoidrive.R
 import me.hufman.androidautoidrive.maps.CarLocationProvider
@@ -44,12 +43,16 @@ class AmapNaviProjection(
     private val appSettings: AppSettings,
     private val locationProvider: CarLocationProvider,
     private val mapAppMode: MapAppMode
-) : Presentation(parentContext, display), AMapNaviListener, AMapNaviViewListener {
+) : Presentation(parentContext, display), AMapNaviListener, AMapNaviViewListener,
+	ParallelRoadListener, AimlessModeListener {
 
     companion object {
         private const val TAG = "AmapNaviProjection"
         // give up on a route calculation that never calls back, so the route list doesn't spin forever
         private const val ROUTE_TIMEOUT_MS = 20000L
+        /** Soft fallback when onInitNaviSuccess never arrives (common after warmUpNavi). */
+        private const val INIT_RETRY_MS = 500L
+        private const val NAVI_INFO_MIN_INTERVAL_MS = 800L
     }
 
     val naviView: AMapNaviView by lazy { findViewById(R.id.naviView) }
@@ -58,16 +61,19 @@ class AmapNaviProjection(
 
     init {
         // Privacy must be agreed before AMapNavi.getInstance, which also needs location permission
-        AMapLocationClient.updatePrivacyShow(parentContext, true, true)
-        AMapLocationClient.updatePrivacyAgree(parentContext, true)
+        AmapSdkBootstrap.prepare(parentContext)
     }
 
-    // 导航相关对象
-    private val mAMapNavi: AMapNavi by lazy { AMapNavi.getInstance(parentContext) }
+    // 导航相关对象（docs: getInstance 可能抛异常，使用前空判断）
+    private val mAMapNavi: AMapNavi? by lazy { AmapSdkBootstrap.getNaviOrNull(parentContext) }
     var isNavigating = false
         private set
     private var currentDestination: LatLong? = null
     private var pendingDestination: LatLong? = null
+    private var pendingDestName: String? = null
+    private var pendingDestPoiId: String? = null
+    private var pendingWaypoints: List<AmapRoutePoint> = emptyList()
+    private var pendingStartBearingDeg: Float? = null
     private var naviStartRequested = false
     private var autoStartAfterCalc = false
     private var routesPublished = false
@@ -75,6 +81,7 @@ class AmapNaviProjection(
     private var naviReady = false
     private var naviInitFailed = false
     private var naviListenerAdded = false
+    private var lastNaviInfoPostMs = 0L
     private var lastSettings: AmapSettings? = null
     private var emulatorNavi = false
     private val handler = Handler(Looper.getMainLooper())
@@ -121,9 +128,8 @@ class AmapNaviProjection(
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize AMap privacy compliance
-        AMapLocationClient.updatePrivacyShow(parentContext, true, true)
-        AMapLocationClient.updatePrivacyAgree(parentContext, true)
+        // Privacy + native load before AMapNaviView inflate (avoids getTreadId UnsatisfiedLinkError)
+        AmapSdkBootstrap.warmUpNavi(parentContext)
 
         window?.setType(WindowManager.LayoutParams.TYPE_PRIVATE_PRESENTATION)
         applyLandscapeConfiguration()
@@ -193,7 +199,7 @@ class AmapNaviProjection(
         awaitingSecondRouteCallback = false
         try {
             if (shouldStop) {
-                mAMapNavi.stopNavi()
+                mAMapNavi?.stopNavi()
             }
             isNavigating = false
         } catch (e: Exception) {
@@ -201,12 +207,15 @@ class AmapNaviProjection(
         }
         try {
             if (naviListenerAdded) {
-                mAMapNavi.removeAMapNaviListener(this)
+                mAMapNavi?.removeAMapNaviListener(this)
+                mAMapNavi?.removeParallelRoadListener(this)
+                mAMapNavi?.removeAimlessModeListener(this)
                 naviListenerAdded = false
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to remove AMap navi listener", e)
         }
+        AmapNaviGuidance.clear()
         try {
             naviView.onDestroy()
         } catch (e: Exception) {
@@ -232,28 +241,72 @@ class AmapNaviProjection(
     }
 
     private fun ensureNavi() {
+        val navi = mAMapNavi
+        if (navi == null) {
+            Log.e(TAG, "AMapNavi unavailable after privacy bootstrap")
+            naviInitFailed = true
+            if (pendingDestination != null) {
+                failPendingRoute("AMapNavi.getInstance failed")
+            }
+            return
+        }
         if (!naviListenerAdded) {
-            mAMapNavi.addAMapNaviListener(this)
+            navi.addAMapNaviListener(this)
+            navi.addParallelRoadListener(this)
+            navi.addAimlessModeListener(this)
             naviListenerAdded = true
         }
-        try {
-            // Inner TTS crashes this process (FileTransManager / destroyed mutex).
-            mAMapNavi.setUseInnerVoice(false)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to disable AMap inner voice", e)
+        // warmUpNavi / prior getInstance often finishes init before this listener exists,
+        // so onInitNaviSuccess may never fire again. Treat a live instance as ready.
+        if (!naviReady && !naviInitFailed) {
+            naviReady = true
+            Log.i(TAG, "Navi ready (instance live; init success may have fired during warm-up)")
         }
-        try {
-            mAMapNavi.setMultipleRouteNaviMode(true)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to enable multiple route mode", e)
-        }
+        applyNaviEngineSettings(AmapSettings.build(appSettings, locationProvider.currentLocation?.toLatLong()))
         disableAmapPhoneGps()
         (locationProvider.currentLocation ?: SimulatedCarLocation.create()).let { feedExtraGps(it) }
         if (!naviReady) {
             handler.removeCallbacks(initRetryRunnable)
-            handler.postDelayed(initRetryRunnable, 2000)
+            handler.postDelayed(initRetryRunnable, INIT_RETRY_MS)
         }
         Log.i(TAG, "Navigation initialized with extra GPS and phone GPS disabled")
+    }
+
+    private fun applyNaviEngineSettings(settings: AmapSettings) {
+        val navi = mAMapNavi ?: return
+        try {
+            navi.setUseInnerVoice(settings.useInnerVoice)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set AMap inner voice", e)
+        }
+        try {
+            navi.setMultipleRouteNaviMode(settings.multipleRoute)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set multiple route mode", e)
+        }
+        try {
+            navi.setBroadcastMode(settings.broadcastMode)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set broadcast mode", e)
+        }
+        try {
+            AmapRoutePlanning.applyCarInfo(navi, appSettings)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to apply AMapCarInfo", e)
+        }
+        try {
+            navi.setTrafficStatusUpdateEnabled(settings.trafficStatusUpdate)
+            navi.setTrafficInfoUpdateEnabled(settings.trafficInfoUpdate)
+            navi.setServiceAreaDetailsEnable(settings.serviceAreaDetails)
+            navi.setTrafficSignalEnable(settings.trafficLights)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set AMap traffic/service callbacks", e)
+        }
+        try {
+            navi.setCameraInfoUpdateEnabled(settings.cameras && isNavigating)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set camera info updates", e)
+        }
     }
 
     fun onCarLocationUpdate(location: Location) {
@@ -263,13 +316,19 @@ class AmapNaviProjection(
         postTryStartRoute()
     }
 
-    fun navigateTo(dest: LatLong) {
-        Log.i(TAG, "Planning navigation to $dest")
+    fun navigateTo(
+        dest: LatLong,
+        name: String? = null,
+        poiId: String? = null,
+        waypoints: List<AmapRoutePoint> = emptyList(),
+        startBearingDeg: Float? = null,
+    ) {
+        Log.i(TAG, "Planning navigation to $dest name=$name poiId=$poiId ways=${waypoints.size}")
         // Stop any in-progress navi before a new calculateDriveRoute.
         val shouldStop = isNavigating || naviStartRequested
         if (shouldStop) {
             try {
-                mAMapNavi.stopNavi()
+                mAMapNavi?.stopNavi()
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to stop previous AMap navi before new route", e)
             }
@@ -277,6 +336,10 @@ class AmapNaviProjection(
         }
         currentDestination = dest
         pendingDestination = dest
+        pendingDestName = name
+        pendingDestPoiId = poiId
+        pendingWaypoints = waypoints.take(AmapRoutePlanning.MAX_WAYPOINTS)
+        pendingStartBearingDeg = startBearingDeg
         naviStartRequested = false
         autoStartAfterCalc = false
         routesPublished = false
@@ -292,6 +355,7 @@ class AmapNaviProjection(
         val dest = currentDestination ?: return
         Log.i(TAG, "Recalculating navigation to $dest")
         pendingDestination = dest
+        // keep pendingDestName / poiId / waypoints for recalc
         naviStartRequested = false
         autoStartAfterCalc = true
         routesPublished = false
@@ -306,7 +370,7 @@ class AmapNaviProjection(
         Log.i(TAG, "Selecting route $routeId")
         naviStartRequested = false
         try {
-            mAMapNavi.selectRouteId(routeId)
+            mAMapNavi?.selectRouteId(routeId)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to select route $routeId", e)
         }
@@ -317,6 +381,10 @@ class AmapNaviProjection(
         Log.i(TAG, "Stopping navigation")
         val shouldStop = isNavigating || naviStartRequested
         pendingDestination = null
+        pendingDestName = null
+        pendingDestPoiId = null
+        pendingWaypoints = emptyList()
+        pendingStartBearingDeg = null
         naviStartRequested = false
         emulatorNavi = false
         autoStartAfterCalc = false
@@ -327,13 +395,14 @@ class AmapNaviProjection(
         try {
             // startNavi can run before onStartNavi flips isNavigating; still stop the engine.
             if (shouldStop) {
-                mAMapNavi.stopNavi()
+                mAMapNavi?.stopNavi()
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to stop AMap navi", e)
         }
         isNavigating = false
         currentDestination = null
+        AmapNaviGuidance.clear()
         // stopNavi freezes guidance updates but leaves the navi chrome/route on screen
         resetIdleMap()
     }
@@ -350,12 +419,12 @@ class AmapNaviProjection(
         } catch (e: Exception) {
             Log.w(TAG, "Failed to hide route markers", e)
         }
+        // Avoid map.clear()+reInit — they trigger EGL "no current context" and theme warnings
+        // in Presentation after stopNavi. Hide markers + recenter is enough for idle capture.
         try {
-            // clear() removes route overlays; reInit restores AMapNaviView's car overlay after clear
-            naviView.map?.clear()
-            naviView.reInit(null)
+            naviView.setCarOverlayVisible(true)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to clear navi map overlays", e)
+            Log.w(TAG, "Failed to show car overlay", e)
         }
         applySettings(AmapSettings.build(appSettings, locationProvider.currentLocation?.toLatLong()), force = true)
         disableAmapPhoneGps()
@@ -387,8 +456,21 @@ class AmapNaviProjection(
         val amapOrigin = toAmapLocation(origin)
         try {
             // destinations come from AMap search or favorites saved from it, so they are already GCJ-02
-            val submitted = startRouteCalculation(LatLong(amapOrigin.latitude, amapOrigin.longitude), dest)
+            val bearing = pendingStartBearingDeg
+                ?: origin.takeIf { it.hasBearing() }?.bearing
+            val submitted = startRouteCalculation(
+                LatLong(amapOrigin.latitude, amapOrigin.longitude),
+                dest,
+                pendingDestName,
+                pendingDestPoiId,
+                pendingWaypoints,
+                bearing,
+            )
             pendingDestination = null
+            pendingDestName = null
+            pendingDestPoiId = null
+            pendingWaypoints = emptyList()
+            pendingStartBearingDeg = null
             if (!submitted) {
                 // no calculation callback will arrive
                 failPendingRoute("AMap did not accept the route calculation")
@@ -400,8 +482,8 @@ class AmapNaviProjection(
 
     private fun disableAmapPhoneGps() {
         try {
-            mAMapNavi.setIsUseExtraGPSData(true)
-            mAMapNavi.stopGPS()
+            mAMapNavi?.setIsUseExtraGPSData(true)
+            mAMapNavi?.stopGPS()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to disable AMap phone GPS", e)
         }
@@ -426,8 +508,8 @@ class AmapNaviProjection(
     private fun feedExtraGps(location: Location) {
         try {
             val amapLocation = toAmapLocation(location)
-            mAMapNavi.setIsUseExtraGPSData(true)
-            mAMapNavi.setExtraGPSData(AMapLocation.LOCATION_TYPE_GPS, amapLocation)
+            mAMapNavi?.setIsUseExtraGPSData(true)
+            mAMapNavi?.setExtraGPSData(AMapLocation.LOCATION_TYPE_GPS, amapLocation)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to feed extra GPS to AMap", e)
         }
@@ -449,44 +531,24 @@ class AmapNaviProjection(
     }
 
     /** Returns whether AMap accepted the calculation, otherwise no callback will arrive */
-    private fun startRouteCalculation(start: LatLong, dest: LatLong): Boolean {
-        val startLatLng = NaviLatLng(start.latitude, start.longitude)
-        val endLatLng = NaviLatLng(dest.latitude, dest.longitude)
-
-        val startList = listOf(startLatLng)
-        val endList = listOf(endLatLng)
-
-
-        /**
-         * 方法: int strategy=mAMapNavi.strategyConvert(congestion, avoidhightspeed, cost, hightspeed, multipleroute); 参数:
-         *
-         * @congestion 躲避拥堵
-         * @avoidhightspeed 不走高速
-         * @cost 避免收费
-         * @hightspeed 高速优先
-         * @multipleroute 多路径
-         *
-         * 说明: 以上参数都是boolean类型，其中multipleroute参数表示是否多条路线，如果为true则此策略会算出多条路线。
-         * 注意: 不走高速与高速优先不能同时为true 高速优先与避免收费不能同时为true
-         */
-        var avoidHighway = appSettings[AppSettings.KEYS.AMAP_AVOID_HIGHWAY].toBoolean()
-        var avoidCost = appSettings[AppSettings.KEYS.AMAP_AVOID_COST].toBoolean()
-        var preferHighway = appSettings[AppSettings.KEYS.AMAP_PREFER_HIGHWAY].toBoolean()
-        val avoidCongestion = appSettings[AppSettings.KEYS.AMAP_AVOID_CONGESTION].toBoolean()
-        if (avoidHighway && preferHighway) {
-            preferHighway = false
-        }
-        if (preferHighway && avoidCost) {
-            avoidCost = false
-        }
-        var strategy = 0
-        try {
-            strategy = mAMapNavi.strategyConvert(avoidCongestion, avoidHighway, avoidCost, preferHighway, true)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to convert navi strategy", e)
-        }
-        Log.i(TAG, "Calculating multiple routes congestion=$avoidCongestion avoidHighway=$avoidHighway avoidCost=$avoidCost preferHighway=$preferHighway")
-        return mAMapNavi.calculateDriveRoute(startList, endList, null, strategy)
+    private fun startRouteCalculation(
+        start: LatLong,
+        dest: LatLong,
+        destName: String?,
+        destPoiId: String?,
+        waypoints: List<AmapRoutePoint>,
+        startBearingDeg: Float?,
+    ): Boolean {
+        val navi = mAMapNavi ?: return false
+        val request = AmapRoutePlanning.latLngRequest(
+            start = start,
+            end = dest,
+            endName = destName,
+            endPoiId = destPoiId,
+            waypoints = waypoints,
+            startBearingDeg = startBearingDeg,
+        )
+        return AmapRoutePlanning.calculate(navi, appSettings, request)
     }
 
     fun applySettings(settings: AmapSettings, force: Boolean = false) {
@@ -523,33 +585,82 @@ class AmapNaviProjection(
 
     private fun applyNaviViewOptions(settings: AmapSettings) {
         try {
+            applyNaviEngineSettings(settings)
             val options = naviView.viewOptions ?: AMapNaviViewOptions()
+            // Phone sensors = phone attitude, not car heading. VirtualDisplay often has no
+            // usable sensors either — keep false always (do not expose as App setting).
+            // Heading comes from CDS / setExtraGPSData bearing.
             options.setSensorEnable(false)
+            // Phone-only chrome stays off on the car Presentation
             options.setSettingMenuEnabled(false)
-            // Draw routes while planning or guiding; turn-by-turn chrome only while actively navigating
+            options.setShowSettingsPanel(false)
+            options.setShowRouteStrategyPreferencePanel(false)
+            options.setRouteListButtonShow(false)
+            options.setRefreshButtonEnabled(false)
+            options.setNaviStatusBarEnabled(false)
+
             val planningOrGuiding = isNavigating || currentDestination != null || pendingDestination != null || naviStartRequested
             options.setLayoutVisible(settings.layout && isNavigating)
             options.setAutoDrawRoute(planningOrGuiding)
             options.setLaneInfoShow(settings.laneInfo && isNavigating)
             options.setRealCrossDisplayShow(settings.crossView && isNavigating)
             options.setModeCrossDisplayShow(settings.crossView && isNavigating)
+            options.setEyrieCrossDisplay(settings.eyrieCross && isNavigating)
             options.setTrafficBarEnabled(settings.trafficBar && isNavigating)
             options.setCompassEnabled(settings.compass)
             options.setAutoLockCar(settings.lockCar && isNavigating)
             options.setAutoChangeZoom(settings.autoZoom && isNavigating)
             options.setCameraBubbleShow(settings.cameras && isNavigating)
-            options.setCameraInfoUpdateEnabled(settings.cameras && isNavigating)
+            options.setShowCameraDistance(settings.cameraDistance && isNavigating)
             options.setTrafficLine(settings.trafficLine && planningOrGuiding)
             options.setTrafficLayerEnabled(settings.mapTraffic)
             options.setEagleMapVisible(settings.eagle && isNavigating)
+            options.setAutoDisplayOverview(settings.autoOverview && isNavigating)
             options.setNaviArrowVisible(settings.naviArrow && isNavigating)
+            options.setSecondActionVisible(settings.secondAction && isNavigating)
+            options.setDrawBackUpOverlay(settings.drawBackupRoute && planningOrGuiding)
+            options.setAfterRouteAutoGray(settings.routeAutoGray && isNavigating)
+            options.setWidgetOverSpeedPulseEffective(settings.overspeedPulse && isNavigating)
+            options.setShowNaviPopTips(settings.naviPopTips && isNavigating)
+            options.setRestrictAreaInfoStatus(settings.restrictAreaInfo)
+            options.setStopTtsWhenNaviExit(settings.stopTtsOnExit)
             options.setAutoNaviViewNightMode(settings.nightAuto)
             options.setNaviNight(if (settings.nightAuto) !settings.mapDaytime else settings.night)
-            options.setTilt(if (settings.mapTilt) 45 else 0)
+            options.setTilt(if (settings.mapTilt) settings.tiltDeg else 0)
+            settings.lockMapDelayMs?.let { options.setLockMapDelayed(it) }
+            if (settings.autoZoomMin != null && settings.autoZoomMax != null &&
+					settings.autoZoomMin < settings.autoZoomMax) {
+                options.setAutoZoomRange(settings.autoZoomMin, settings.autoZoomMax)
+            }
             if (settings.mapCustomStyle && settings.amapStyleUrl.isNotBlank()) {
                 options.setCustomMapStylePath(settings.amapStyleUrl)
             }
             naviView.viewOptions = options
+            try {
+                naviView.setNaviMode(settings.naviMode)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to set navi mode", e)
+            }
+            try {
+                naviView.setLockTilt(if (settings.mapTilt) settings.tiltDeg else 0)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to set lock tilt", e)
+            }
+            settings.lockZoom?.let { zoom ->
+                try {
+                    naviView.setLockZoom(zoom)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to set lock zoom", e)
+                }
+            }
+            try {
+                naviView.setCarOverlayVisible(settings.carOverlay)
+                naviView.setTrafficLightsVisible(settings.trafficLights)
+                naviView.setShowDriveCongestion(settings.driveCongestion && isNavigating)
+                naviView.setShowTrafficLightView(settings.trafficLightView && isNavigating)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to set AMapNaviView overlays", e)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to apply AMap navi view options", e)
         }
@@ -580,10 +691,15 @@ class AmapNaviProjection(
         Log.e(TAG, "Navigation initialization failed")
         naviReady = false
         naviInitFailed = true
+        if (pendingDestination != null && !naviStartRequested) {
+            handler.removeCallbacks(initRetryRunnable)
+            handler.postDelayed(initRetryRunnable, INIT_RETRY_MS)
+        }
     }
 
     override fun onInitNaviSuccess() {
         Log.i(TAG, "Navigation initialization success")
+        handler.removeCallbacks(initRetryRunnable)
         naviInitFailed = false
         naviReady = true
         postTryStartRoute()
@@ -597,6 +713,7 @@ class AmapNaviProjection(
     }
 
     override fun onTrafficStatusUpdate() {
+        AmapNaviGuidance.postTrafficUpdated()
     }
 
     override fun onCalculateRouteSuccess(ids: IntArray) {
@@ -626,65 +743,124 @@ class AmapNaviProjection(
     }
 
     override fun onNaviInfoUpdate(naviInfo: NaviInfo?) {
-        // 导航信息更新
-        naviInfo?.let {
-            Log.d(TAG, "Navigation info update: ${it.getCurrentRoadName()}")
-        }
+        val info = naviInfo ?: return
+        val now = System.currentTimeMillis()
+        if (now - lastNaviInfoPostMs < NAVI_INFO_MIN_INTERVAL_MS) return
+        lastNaviInfoPostMs = now
+        AmapNaviGuidance.postNaviInfo(
+            GuidanceNaviInfo(
+                currentRoad = info.currentRoadName,
+                nextRoad = info.nextRoadName,
+                iconType = info.iconType,
+                pathRetainDistanceM = info.pathRetainDistance,
+                pathRetainTimeS = info.pathRetainTime,
+                stepRetainDistanceM = info.curStepRetainDistance,
+                stepRetainTimeS = info.curStepRetainTime,
+                currentSpeedKmh = info.currentSpeed,
+                remainTrafficLights = info.routeRemainLightCount,
+            )
+        )
     }
 
-    override fun updateCameraInfo(p0: Array<out AMapNaviCameraInfo>?) {
+    override fun updateCameraInfo(infoArray: Array<out AMapNaviCameraInfo>?) {
+        val cameras = infoArray?.map {
+            GuidanceCamera(
+                type = it.cameraType,
+                distanceM = it.cameraDistance,
+                limitKmh = it.cameraSpeed,
+                longitude = it.x,
+                latitude = it.y,
+            )
+        } ?: emptyList()
+        AmapNaviGuidance.postCameras(cameras)
     }
 
     override fun updateIntervalCameraInfo(
-        p0: AMapNaviCameraInfo?,
-        p1: AMapNaviCameraInfo?,
-        p2: Int
+        start: AMapNaviCameraInfo?,
+        end: AMapNaviCameraInfo?,
+        status: Int
     ) {
+        fun AMapNaviCameraInfo.toGuidance() = GuidanceCamera(
+            type = cameraType,
+            distanceM = cameraDistance,
+            limitKmh = cameraSpeed,
+            longitude = x,
+            latitude = y,
+        )
+        AmapNaviGuidance.postIntervalCamera(
+            GuidanceIntervalCamera(
+                start = start?.toGuidance(),
+                end = end?.toGuidance(),
+                status = status,
+            )
+        )
     }
 
-    override fun onServiceAreaUpdate(p0: Array<out AMapServiceAreaInfo>?) {
+    override fun onServiceAreaUpdate(infoArray: Array<out AMapServiceAreaInfo>?) {
+        val areas = infoArray?.map {
+            GuidanceServiceArea(
+                name = it.name,
+                type = it.type,
+                remainDistanceM = it.remainDist,
+                remainTimeS = it.remainTime,
+                longitude = it.coordinate?.longitude,
+                latitude = it.coordinate?.latitude,
+            )
+        } ?: emptyList()
+        AmapNaviGuidance.postServiceAreas(areas)
     }
 
     override fun showCross(p0: AMapNaviCross?) {
+        AmapNaviGuidance.postCrossVisible(true)
     }
 
     override fun hideCross() {
+        AmapNaviGuidance.postCrossVisible(false)
     }
 
     override fun showModeCross(p0: AMapModelCross?) {
+        AmapNaviGuidance.postCrossVisible(true)
     }
 
     override fun hideModeCross() {
+        AmapNaviGuidance.postCrossVisible(false)
     }
 
     override fun showLaneInfo(p0: Array<out AMapLaneInfo>?, p1: ByteArray?, p2: ByteArray?) {
+        // legacy overload; prefer single-object callback below
     }
 
-    override fun showLaneInfo(p0: AMapLaneInfo?) {
+    override fun showLaneInfo(laneInfo: AMapLaneInfo?) {
+        if (laneInfo == null) {
+            AmapNaviGuidance.postLane(null)
+            return
+        }
+        AmapNaviGuidance.postLane(
+            GuidanceLane(
+                laneCount = laneInfo.laneCount,
+                backgroundLane = laneInfo.backgroundLane,
+                frontLane = laneInfo.frontLane,
+            )
+        )
     }
 
     override fun hideLaneInfo() {
+        AmapNaviGuidance.postLane(null)
     }
 
     override fun onLocationChange(aMapNaviLocation: AMapNaviLocation?) {
-        // 位置变化回调
-        aMapNaviLocation?.let {
-//            Log.d(TAG, "Location changed: ${it.latitude}, ${it.longitude}")
-        }
+        // car location while navigating — reserved for HUD speed/heading overlays
     }
 
     override fun onGetNavigationText(type: Int, text: String?) {
-        // 获取导航文本信息，用于语音播报
         text?.let {
             Log.i(TAG, "Navigation text: $text")
+            AmapNaviGuidance.postSpeechText(it)
         }
     }
 
     override fun onGetNavigationText(text: String?) {
-        // 获取导航文本信息，用于语音播报
-        text?.let {
-            Log.i(TAG, "Navigation text: $text")
-        }
+        // SDK also invokes the typed overload; avoid double-posting to LiveData / logs.
     }
 
     override fun onEndEmulatorNavi() {
@@ -695,6 +871,7 @@ class AmapNaviProjection(
         currentDestination = null
         mapAppMode.currentNavDestination = null
         mapAppMode.finishRouteSelection()
+        AmapNaviGuidance.clear()
         resetIdleMap()
     }
 
@@ -706,6 +883,7 @@ class AmapNaviProjection(
         currentDestination = null
         mapAppMode.currentNavDestination = null
         mapAppMode.finishRouteSelection()
+        AmapNaviGuidance.clear()
         resetIdleMap()
     }
 
@@ -725,7 +903,7 @@ class AmapNaviProjection(
             return
         }
         val paths = try {
-            mAMapNavi.naviPaths ?: emptyMap()
+            mAMapNavi?.naviPaths ?: emptyMap()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to read navi paths", e)
             emptyMap()
@@ -765,7 +943,7 @@ class AmapNaviProjection(
             Log.i(TAG, "Route selection was cancelled, not starting navigation")
         } else if (autoStart && choices.isNotEmpty()) {
             try {
-                mAMapNavi.selectRouteId(choices[0].routeId)
+                mAMapNavi?.selectRouteId(choices[0].routeId)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to select default route", e)
             }
@@ -783,47 +961,106 @@ class AmapNaviProjection(
         if (locationProvider.isSimulated || SimulatedCarLocation.matches(origin)) {
             emulatorNavi = true
             try {
-                mAMapNavi.setIsUseExtraGPSData(false)
+                mAMapNavi?.setIsUseExtraGPSData(false)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to release extra GPS for emulator", e)
             }
             try {
-                mAMapNavi.setEmulatorNaviSpeed(MapNaviBehavior.emulatorSpeed(appSettings))
+                mAMapNavi?.setEmulatorNaviSpeed(MapNaviBehavior.emulatorSpeed(appSettings))
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to set emulator navi speed", e)
             }
             Log.i(TAG, "Starting emulator navigation from ${origin.latitude},${origin.longitude}")
-            mAMapNavi.startNavi(NaviType.EMULATOR)
+            mAMapNavi?.startNavi(NaviType.EMULATOR)
         } else {
             emulatorNavi = false
             feedExtraGps(origin)
             Log.i(TAG, "Starting GPS navigation with CDS extra GPS")
-            mAMapNavi.startNavi(NaviType.GPS)
+            mAMapNavi?.startNavi(NaviType.GPS)
         }
     }
 
     override fun notifyParallelRoad(p0: Int) {
+        // legacy int callback; richer status comes from ParallelRoadListener
     }
 
     override fun OnUpdateTrafficFacility(p0: Array<out AMapNaviTrafficFacilityInfo>?) {
+        // also delivered via AimlessModeListener while cruising
     }
 
     override fun OnUpdateTrafficFacility(p0: AMapNaviTrafficFacilityInfo?) {
     }
 
-    override fun updateAimlessModeStatistics(p0: AimLessModeStat?) {
+    override fun updateAimlessModeStatistics(stat: AimLessModeStat?) {
+        AmapNaviGuidance.postAimless(
+            GuidanceAimless(
+                statisticsSummary = stat?.let {
+                    "dist=${it.aimlessModeDistance}m time=${it.aimlessModeTime}s"
+                }
+            )
+        )
     }
 
-    override fun updateAimlessModeCongestionInfo(p0: AimLessModeCongestionInfo?) {
+    override fun updateAimlessModeCongestionInfo(info: AimLessModeCongestionInfo?) {
+        AmapNaviGuidance.postAimless(
+            GuidanceAimless(
+                congestionDistanceM = info?.length,
+                statisticsSummary = info?.roadName,
+            )
+        )
     }
 
     override fun onPlayRing(p0: Int) {
     }
 
-    override fun onNaviRouteNotify(p0: AMapNaviRouteNotifyData?) {
+    override fun onNaviRouteNotify(notifyData: AMapNaviRouteNotifyData?) {
+        if (notifyData == null) {
+            AmapNaviGuidance.postRouteNotify(null)
+            return
+        }
+        AmapNaviGuidance.postRouteNotify(
+            GuidanceRouteNotify(
+                notifyType = notifyData.notifyType,
+                success = notifyData.isSuccess,
+                distanceM = notifyData.distance,
+                roadName = notifyData.roadName,
+                reason = notifyData.reason,
+                subTitle = notifyData.subTitle,
+                longitude = notifyData.longitude,
+                latitude = notifyData.latitude,
+            )
+        )
     }
 
     override fun onGpsSignalWeak(p0: Boolean) {
+    }
+
+    // ParallelRoadListener (驾车平行路)
+    override fun notifyParallelRoad(roadStatus: AMapNaviParallelRoadStatus?) {
+        if (roadStatus == null) {
+            AmapNaviGuidance.postParallelRoad(null)
+            return
+        }
+        AmapNaviGuidance.postParallelRoad(
+            GuidanceParallelRoad(
+                status = roadStatus.status,
+                parallelRoadFlag = roadStatus.getmParallelRoadStatusFlag(),
+                elevatedRoadFlag = roadStatus.getmElevatedRoadStatusFlag(),
+            )
+        )
+    }
+
+    // AimlessModeListener (智能巡航)
+    override fun onUpdateTrafficFacility(infos: Array<out AMapNaviTrafficFacilityInfo>?) {
+        AmapNaviGuidance.postAimless(
+            GuidanceAimless(facilityCount = infos?.size ?: 0)
+        )
+    }
+
+    override fun onUpdateAimlessModeElecCameraInfo(cameraInfo: Array<out AMapNaviTrafficFacilityInfo>?) {
+        AmapNaviGuidance.postAimless(
+            GuidanceAimless(elecCameraCount = cameraInfo?.size ?: 0)
+        )
     }
 
     // AMapNaviViewListener 回调方法
@@ -872,4 +1109,17 @@ class AmapNaviProjection(
     override fun onNaviViewShowMode(showMode: Int) {
         Log.i(TAG, "Navigation view show mode from view: $showMode")
     }
+
+    // AMapNaviViewListener additions in Amap 11.x (no-ops for headless car Presentation)
+    override fun onStopSpeaking() {}
+    override fun onViewTypeChanged(viewType: AmapPageType?) {}
+    override fun onAMapNaviViewExit() {}
+    override fun onStrategyChanged(strategy: Int) {}
+    override fun onBroadcastModeChanged(mode: Int) {}
+    override fun onDayAndNightModeChanged(mode: Int) {}
+    override fun onScaleAutoChanged(enable: Boolean) {}
+    override fun onListenToVoiceDuringCallChanged(isListenToVoiceDuringCall: Boolean) {}
+    override fun onControlMusicVolumeModeChanged(controlMusicVolumeMode: Int) {}
+    override fun onEagleChanged(isEagle: Boolean) {}
+    override fun onNaviRouteHighlightChange(highLightPathId: Long, triggerType: Int) {}
 }

@@ -53,12 +53,13 @@ android {
         applicationId "me.hufman.androidautoidrive"
         compileSdk 35
         minSdkVersion 23
-        // AndroidAutoIdrive_VersionCode overrides the versionCode
-        // otherwise it comes from the latest vMAJOR.MINOR.PATCH git tag, and date-style tags such as
-        // v20240912 don't fit codeFormat, so fall back to a code that installs over any release
+        // AndroidAutoIdrive_VersionCode overrides the versionCode.
+        // Upstream semver tags (1.4.x) produce small MMNNPPXXX codes. This fork previously
+        // described from date tags like v20240912 (which don't fit codeFormat) and fell back
+        // to 99999999, so keep that as a floor or updates won't install over existing builds.
         def gitVersionCode = { ->
             try {
-                return androidGitVersion.code() + 1
+                return Math.max(androidGitVersion.code() + 1, 99999999)
             } catch (Exception e) {
                 logger.warn("Could not compute versionCode from git tags (${e.message}), using 99999999")
                 return 99999999
@@ -111,7 +112,6 @@ android {
                     "src/main/res-facets/tips",
                     "src/main/res-facets/welcome",
             ]
-            // AMap native libraries live in src/amap/jniLibs, so only the amap flavor packages them
         }
     }
 
@@ -187,6 +187,10 @@ android {
         }
         amap {
             dimension "map"
+            // Amap 11.2+ is 16KB-aligned for arm64; 32-bit ABIs are unsupported / still 4KB-aligned
+            ndk {
+                abiFilters "arm64-v8a"
+            }
             manifestPlaceholders = [amap_api_key: System.env.AndroidAutoIdrive_AmapApiKey ? System.env.AndroidAutoIdrive_AmapApiKey : AndroidAutoIdrive_AmapApiKey,
                                     appAuthRedirectScheme: defaultConfig.applicationId]
         }
@@ -302,25 +306,34 @@ tasks.register('checkDebug') {
 
 repositories {
     maven { url 'https://jitpack.io' }
+    mavenCentral()
 }
 
+// Resolve Amap from Maven, then strip ReflectUtil so our silent stub in src/amap wins.
+configurations {
+    amapSdk
+}
+
+def AMAP_SDK = 'com.amap.api:navi-3dmap-location-search:11.2.100_3dmap11.2.100_loc11.2.100_sea9.8.1'
 def filteredAmapDir = layout.buildDirectory.dir("filtered-amap-libs")
 def filterAmapSdkJars = tasks.register("filterAmapSdkJars") {
-    def srcDir = file("libs/amap")
-    inputs.dir(srcDir)
+    dependsOn(configurations.amapSdk)
+    inputs.files(configurations.amapSdk)
     outputs.dir(filteredAmapDir)
     doLast {
         def dest = filteredAmapDir.get().asFile
         dest.deleteDir()
         dest.mkdirs()
-        copy {
-            from srcDir
-            include "*.aar"
-            into dest
-        }
-        fileTree(dir: srcDir, include: "*.jar").files.each { File srcJar ->
-            ant.jar(destfile: new File(dest, srcJar.name)) {
-                zipfileset(src: srcJar.absolutePath, excludes: "com/autonavi/base/ae/gmap/glyph/ReflectUtil.class")
+        configurations.amapSdk.files.each { File src ->
+            if (src.name.endsWith(".jar")) {
+                ant.jar(destfile: new File(dest, src.name)) {
+                    zipfileset(src: src.absolutePath, excludes: "com/autonavi/base/ae/gmap/glyph/ReflectUtil.class")
+                }
+            } else if (src.name.endsWith(".aar")) {
+                copy {
+                    from src
+                    into dest
+                }
             }
         }
     }
@@ -332,6 +345,7 @@ filteredAmapLibs.from({
 filteredAmapLibs.builtBy(filterAmapSdkJars)
 
 dependencies {
+    amapSdk AMAP_SDK
     // https://mvnrepository.com/artifact/cn.hutool/hutool-core
     implementation 'cn.hutool:hutool-core:5.8.25'
     implementation fileTree(dir: 'libs', include: ['*.jar'])
@@ -405,11 +419,8 @@ dependencies {
         exclude group: 'com.mapbox.plugin', module: 'maps-viewport'       // we animate the camera manually
         exclude group: 'com.google.android.gms', module: 'play-services-cronet'     // don't need http3 support
     }
-		// 引用本地高德地图SDK文件（去掉 ReflectUtil，改用 amap 源码里的静音实现）
+		// Maven Amap navi+map+location+search; ReflectUtil stripped above for silent HighText stub
 		amapImplementation filteredAmapLibs
-		// 当前使用的SDK文件：
-		// AMap3DMap_10.1.500_AMapNavi_10.1.500_AMapSearch_9.7.4_AMapLocation_6.5.0_20250814.jar
-		// 包含：3D地图SDK V10.1.500 + 导航SDK V10.1.500 + 搜索SDK V9.7.4 + 定位SDK V6.5.0
 
     sentryImplementation 'io.sentry:sentry-android:1.7.16'
     sentryImplementation 'org.slf4j:slf4j-nop:1.7.25'

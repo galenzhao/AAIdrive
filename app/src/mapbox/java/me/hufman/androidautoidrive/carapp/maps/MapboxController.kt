@@ -190,7 +190,7 @@ class MapboxController(private val context: Context,
 		return EdgeInsets(topPadding, leftPadding, bottomPadding, rightPadding)
 	}
 
-	override fun navigateTo(dest: LatLong) {
+	override fun navigateTo(dest: LatLong, name: String?, poiId: String?) {
 		mapAppMode.startInteraction(NAVIGATION_MAP_STARTZOOM_TIME + 4000)
 		navController.navigateTo(dest)
 		animateNavigation()

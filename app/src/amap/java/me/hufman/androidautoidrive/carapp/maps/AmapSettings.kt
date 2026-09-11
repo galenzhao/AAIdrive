@@ -4,6 +4,7 @@ import me.hufman.androidautoidrive.AppSettings
 import me.hufman.androidautoidrive.maps.LatLong
 import me.hufman.androidautoidrive.utils.TimeUtils
 
+/** Snapshot of Amap-related AppSettings applied to the car Presentation. */
 data class AmapSettings(
 		val mapWidescreen: Boolean,
 		val mapDaytime: Boolean,
@@ -25,13 +26,41 @@ data class AmapSettings(
 		val lockCar: Boolean,
 		val autoZoom: Boolean,
 		val cameras: Boolean,
+		val cameraDistance: Boolean,
 		val trafficLine: Boolean,
 		val eagle: Boolean,
+		val autoOverview: Boolean,
 		val naviArrow: Boolean,
+		val secondAction: Boolean,
+		val drawBackupRoute: Boolean,
+		val routeAutoGray: Boolean,
+		val overspeedPulse: Boolean,
+		val eyrieCross: Boolean,
+		val naviPopTips: Boolean,
+		val carOverlay: Boolean,
+		val trafficLights: Boolean,
+		val trafficLightView: Boolean,
+		val driveCongestion: Boolean,
+		val trafficStatusUpdate: Boolean,
+		val trafficInfoUpdate: Boolean,
+		val serviceAreaDetails: Boolean,
+		val restrictAreaInfo: Boolean,
+		val stopTtsOnExit: Boolean,
+		val lockMapDelayMs: Long?,
+		val autoZoomMin: Float?,
+		val autoZoomMax: Float?,
+		val naviMode: Int,
+		val tiltDeg: Int,
+		val lockZoom: Int?,
+		val useInnerVoice: Boolean,
+		val broadcastMode: Int,
+		val multipleRoute: Boolean,
 ) {
 	companion object {
 		fun build(appSettings: AppSettings, location: LatLong?): AmapSettings {
 			val daytime = location == null || TimeUtils.getDayMode(location)
+			val zoomMin = appSettings[AppSettings.KEYS.AMAP_AUTO_ZOOM_MIN].trim().toFloatOrNull()
+			val zoomMax = appSettings[AppSettings.KEYS.AMAP_AUTO_ZOOM_MAX].trim().toFloatOrNull()
 			return AmapSettings(
 					appSettings[AppSettings.KEYS.MAP_WIDESCREEN].toBoolean(),
 					daytime,
@@ -53,9 +82,35 @@ data class AmapSettings(
 					appSettings[AppSettings.KEYS.AMAP_LOCK_CAR].toBoolean(),
 					appSettings[AppSettings.KEYS.AMAP_AUTO_ZOOM].toBoolean(),
 					appSettings[AppSettings.KEYS.AMAP_CAMERAS].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_CAMERA_DISTANCE].toBoolean(),
 					appSettings[AppSettings.KEYS.AMAP_TRAFFIC_LINE].toBoolean(),
 					appSettings[AppSettings.KEYS.AMAP_EAGLE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_AUTO_OVERVIEW].toBoolean(),
 					appSettings[AppSettings.KEYS.AMAP_NAVI_ARROW].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_SECOND_ACTION].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_DRAW_BACKUP_ROUTE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_ROUTE_AUTO_GRAY].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_OVERSPEED_PULSE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_EYRIE_CROSS].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_NAVI_POP_TIPS].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_CAR_OVERLAY].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_TRAFFIC_LIGHTS].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_TRAFFIC_LIGHT_VIEW].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_DRIVE_CONGESTION].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_TRAFFIC_STATUS_UPDATE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_TRAFFIC_INFO_UPDATE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_SERVICE_AREA_DETAILS].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_RESTRICT_AREA_INFO].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_STOP_TTS_ON_EXIT].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_LOCK_MAP_DELAY_MS].trim().toLongOrNull()?.coerceAtLeast(0L),
+					zoomMin,
+					zoomMax,
+					appSettings[AppSettings.KEYS.AMAP_NAVI_MODE].toIntOrNull()?.coerceIn(0, 1) ?: 0,
+					appSettings[AppSettings.KEYS.AMAP_TILT_DEG].toIntOrNull()?.coerceIn(0, 60) ?: 45,
+					appSettings[AppSettings.KEYS.AMAP_LOCK_ZOOM].trim().toIntOrNull()?.coerceIn(3, 20),
+					appSettings[AppSettings.KEYS.AMAP_USE_INNER_VOICE].toBoolean(),
+					appSettings[AppSettings.KEYS.AMAP_BROADCAST_MODE].toIntOrNull()?.coerceIn(1, 3) ?: 2,
+					appSettings[AppSettings.KEYS.AMAP_MULTIPLE_ROUTE].toBoolean(),
 			)
 		}
 	}

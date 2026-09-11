@@ -31,6 +31,9 @@ class PlaceSearchViewTest {
 	val mapPlaceSearch = mock<MapPlaceSearch> {
 		on {searchLocationsAsync(any())} doReturn CompletableDeferred(mapSearchResults)
 		on {resultInformationAsync(mapSearchResults[0].id)} doReturn CompletableDeferred(locationSearchResult)
+		on {enrichMissingPoiIdAsync(any())} doAnswer { inv ->
+			CompletableDeferred(inv.arguments[0] as MapResult)
+		}
 	}
 	val mapInteractionController = mock<MapInteractionController>()
 	val fullImageView = mock<FullImageView> {
@@ -94,7 +97,7 @@ class PlaceSearchViewTest {
 		view.onSelect(view.suggestions[0], 0)
 		verify(mapInteractionController, never()).stopNavigation()
 		view.searchJob?.join()
-		verify(mapInteractionController, never()).navigateTo(any())
+		verify(mapInteractionController, never()).navigateTo(any(), anyOrNull(), anyOrNull())
 
 		assertEquals(searchResultsView.state.id, view.inputComponent.getSuggestAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value)
 		verify(searchResultsView).setContents(any())
@@ -113,7 +116,7 @@ class PlaceSearchViewTest {
 		verify(mapInteractionController).stopNavigation()
 		view.searchJob?.join()
 
-		verify(mapInteractionController).navigateTo(locationSearchResult.location!!)
+		verify(mapInteractionController).navigateTo(eq(locationSearchResult.location!!), eq("Place Name"), eq("placeID1"))
 		assertEquals(fullImageView.state.id, view.inputComponent.getSuggestAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value)
 	}
 }

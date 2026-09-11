@@ -122,6 +122,57 @@
     <string name="lbl_amap_avoid_highway">Avoid highways</string>
     <string name="lbl_amap_avoid_cost">Avoid tolls</string>
     <string name="lbl_amap_prefer_highway">Prefer highways</string>
+    <string name="lbl_amap_car_number">License plate</string>
+    <string name="lbl_amap_car_number_hint">Optional. Used for city plate / ETA restriction routing (normal cars, not trucks).</string>
+    <string name="hint_amap_car_number">e.g. 京A12345</string>
+    <string name="lbl_amap_car_restriction">Avoid driving restrictions</string>
+    <string name="lbl_amap_section_route">Route planning</string>
+    <string name="lbl_amap_section_vehicle">Vehicle</string>
+    <string name="lbl_amap_section_voice">Voice</string>
+    <string name="lbl_amap_section_display">Navi display</string>
+    <string name="lbl_amap_section_advanced">Advanced</string>
+    <string name="lbl_amap_route_strategy">Explicit strategy ID</string>
+    <string name="lbl_amap_route_strategy_hint">Leave empty to use the checkboxes above. Otherwise PathPlanningStrategy 0–20 (e.g. 10 = multi-route default).</string>
+    <string name="hint_amap_route_strategy">e.g. 10</string>
+    <string name="lbl_amap_multiple_route">Multiple route mode</string>
+    <string name="lbl_amap_draw_backup_route">Draw alternate routes</string>
+    <string name="lbl_amap_route_auto_gray">Gray passed route segments</string>
+    <string name="lbl_amap_use_inner_voice">Built-in AMap TTS</string>
+    <string name="lbl_amap_broadcast_mode">Broadcast mode</string>
+    <string name="lbl_amap_broadcast_mode_hint">1 = concise, 2 = detailed, 3 = mute. Default 2.</string>
+    <string name="hint_amap_broadcast_mode">2</string>
+    <string name="lbl_amap_navi_mode">Navi camera mode</string>
+    <string name="lbl_amap_navi_mode_hint">0 = car heading up, 1 = north up.</string>
+    <string name="hint_amap_navi_mode">0</string>
+    <string name="lbl_amap_tilt_deg">Tilt angle (degrees)</string>
+    <string name="lbl_amap_tilt_deg_hint">Used when “Tilt map” is on. 0–60, default 45.</string>
+    <string name="hint_amap_tilt_deg">45</string>
+    <string name="lbl_amap_lock_zoom">Lock zoom level</string>
+    <string name="lbl_amap_lock_zoom_hint">Empty = SDK default. Typical 3–20.</string>
+    <string name="hint_amap_lock_zoom">optional</string>
+    <string name="lbl_amap_camera_distance">Show camera distance</string>
+    <string name="lbl_amap_auto_overview">Auto route overview</string>
+    <string name="lbl_amap_second_action">Show next-next turn</string>
+    <string name="lbl_amap_overspeed_pulse">Overspeed pulse on speed widget</string>
+    <string name="lbl_amap_eyrie_cross">3D intersection enlargement</string>
+    <string name="lbl_amap_navi_pop_tips">Navi pop tips</string>
+    <string name="lbl_amap_car_overlay">Show car overlay</string>
+    <string name="lbl_amap_traffic_lights">Traffic lights on map</string>
+    <string name="lbl_amap_traffic_light_view">Traffic-light HUD</string>
+    <string name="lbl_amap_drive_congestion">Drive congestion overlay</string>
+    <string name="lbl_amap_restrict_area_info">Restrict-area info on route</string>
+    <string name="lbl_amap_traffic_status_update">Traffic status callbacks</string>
+    <string name="lbl_amap_traffic_info_update">Traffic info callbacks</string>
+    <string name="lbl_amap_service_area_details">Service-area detail callbacks</string>
+    <string name="lbl_amap_stop_tts_on_exit">Stop TTS when leaving navi</string>
+    <string name="lbl_amap_lock_map_delay">Re-lock delay after pan (ms)</string>
+    <string name="lbl_amap_lock_map_delay_hint">Empty = SDK default. How long after you pan before the camera locks to the car again.</string>
+    <string name="hint_amap_lock_map_delay">e.g. 5000</string>
+    <string name="lbl_amap_auto_zoom_range">Auto-zoom min / max</string>
+    <string name="lbl_amap_auto_zoom_range_hint">Both required to apply. Leave empty for SDK default.</string>
+    <string name="hint_amap_auto_zoom_min">min zoom</string>
+    <string name="hint_amap_auto_zoom_max">max zoom</string>
+    <string name="lbl_amap_settings_live_hint">Display toggles apply live while the car map is open. Route strategy / plate apply on the next route calculation. Render scale needs reconnecting the car.</string>
     <string name="lbl_amap_settings_section">AMap navigation</string>
     <string name="lbl_amap_settings_section_hint">Route strategy and AMap-only rendering. These do not apply to other map flavors.</string>
     <string name="lbl_amap_render_scale">AMap UI render scale</string>

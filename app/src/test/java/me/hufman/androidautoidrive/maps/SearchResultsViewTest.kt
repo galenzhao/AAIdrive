@@ -42,7 +42,11 @@ class SearchResultsViewTest {
 			}
 		)
 	}
-	val mapPlaceSearch = mock<MapPlaceSearch>()
+	val mapPlaceSearch = mock<MapPlaceSearch> {
+		on {enrichMissingPoiIdAsync(any())} doAnswer { inv ->
+			CompletableDeferred(inv.arguments[0] as MapResult)
+		}
+	}
 	val mapInteractionController = mock<MapInteractionController>()
 	val mapAppMode = mock<MapAppMode> {
 		on {distanceUnits} doReturn CDSVehicleUnits.Distance.Kilometers
@@ -217,7 +221,7 @@ class SearchResultsViewTest {
 		await().untilAsserted { verify(mapPlaceSearch).resultInformationAsync("1") }
 		singleResult.complete(MapResult("1", "Coffee Corner", "123 Main St", LatLong(55.0, -70.0)))
 
-		await().untilAsserted { verify(mapInteractionController).navigateTo(LatLong(55.0, -70.0)) }
+		await().untilAsserted { verify(mapInteractionController).navigateTo(eq(LatLong(55.0, -70.0)), eq("Coffee Corner"), eq("1")) }
 	}
 
 	@Test
@@ -232,6 +236,6 @@ class SearchResultsViewTest {
 		await().until { (mockApp.modelData[25] as? BMWRemoting.RHMIDataTable)?.totalRows == 2 }
 		searchResultsComponent.getAction()?.asRAAction()?.rhmiActionCallback?.onActionEvent(mapOf(1.toByte() to 1))
 
-		await().untilAsserted { verify(mapInteractionController).navigateTo(LatLong(1.0, 2.0)) }
+		await().untilAsserted { verify(mapInteractionController).navigateTo(eq(LatLong(1.0, 2.0)), eq("Cuppa"), eq("2")) }
 	}
 }

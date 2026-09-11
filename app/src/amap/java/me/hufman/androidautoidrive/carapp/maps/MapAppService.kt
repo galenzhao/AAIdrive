@@ -34,6 +34,8 @@ class MapAppService: CarAppService() {
 		try {
 			AppSettings.loadSettings(applicationContext);
 			val appSettings = AppSettingsViewer();
+			// Load navi .so early so first AMapNaviView open is less likely to hit UnsatisfiedLinkError
+			AmapSdkBootstrap.warmUpNavi(applicationContext)
 			val cdsData = CDSDataProvider()
 			cdsData.setConnection(CarInformation.cdsData.asConnection(cdsData))
 			val dimensions = CustomRHMIDimensions(RHMIDimensions.create(carInformation.capabilities), appSettings)

@@ -23,11 +23,10 @@
     <!--用于申请调用A-GPS模块,卫星定位加速-->
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
 
-    <!--用于用户链接蓝牙时，在导航组件页面的蓝牙连接提醒，建立链接后开发者可选用蓝牙通道进行tts播报-->
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-
     <!--用与导航状态中保持屏幕常亮-->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- WRITE_SETTINGS 官方用于排查写缓存；本应用用 CDS/extra GPS，不声明 -->
 
     <application>
         <meta-data

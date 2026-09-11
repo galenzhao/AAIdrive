@@ -18,6 +18,7 @@ import me.hufman.androidautoidrive.maps.LatLong
 import me.hufman.androidautoidrive.maps.MapPlaceSearch
 import me.hufman.androidautoidrive.maps.MapQuickDestination
 import me.hufman.androidautoidrive.maps.MapResult
+import me.hufman.androidautoidrive.maps.resolveNavigable
 import me.hufman.androidautoidrive.utils.truncate
 import kotlin.coroutines.CoroutineContext
 
@@ -115,28 +116,23 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 
 	fun startFavoriteDestination(stored: String) {
 		destinationJob?.cancel()
-		val parsed = MapQuickDestination.parseLocation(stored)
 		if (usesRouteSelection) {
 			prepareRouteSelection()
-			if (parsed != null) {
-				interaction.navigateTo(parsed)
-			} else {
-				destinationJob = launch {
-					val location = MapQuickDestination.resolve(stored, mapPlaceSearch)
-					if (location != null) {
-						interaction.navigateTo(location)
-					} else {
-						mapAppMode.completePendingRoutes(emptyList())
-					}
+		}
+		destinationJob = launch {
+			val result = MapQuickDestination.resolve(stored, mapPlaceSearch)
+			val location = result?.location
+			if (location != null) {
+				interaction.navigateTo(
+					location,
+					result.name.takeIf { it.isNotBlank() },
+					result.id.ifBlank { null },
+				)
+				if (usesRouteSelection) {
+					show()
 				}
-			}
-		} else if (parsed != null) {
-			interaction.navigateTo(parsed)
-		} else {
-			destinationJob = launch {
-				MapQuickDestination.resolve(stored, mapPlaceSearch)?.let {
-					interaction.navigateTo(it)
-				}
+			} else if (usesRouteSelection) {
+				mapAppMode.completePendingRoutes(emptyList())
 			}
 		}
 	}
@@ -249,18 +245,22 @@ class SearchResultsView(val state: RHMIState, val mapPlaceSearch: MapPlaceSearch
 		}
 		searchJob?.cancel()
 		searchJob = launch {
-			val locationResult = if (result.location == null) {
-				mapPlaceSearch.resultInformationAsync(result.id).await()    // ask for LatLong, to navigate to
-			} else {
-				result
-			}
+			val locationResult = mapPlaceSearch.resolveNavigable(result)
 			if (locationResult?.location != null) {
 				if (usesRouteSelection) {
 					prepareRouteSelection()
-					interaction.navigateTo(locationResult.location)
+					interaction.navigateTo(
+						locationResult.location,
+						locationResult.name.takeIf { it.isNotBlank() },
+						locationResult.id.ifBlank { null },
+					)
 					show()
 				} else {
-					interaction.navigateTo(locationResult.location)
+					interaction.navigateTo(
+						locationResult.location,
+						locationResult.name.takeIf { it.isNotBlank() },
+						locationResult.id.ifBlank { null },
+					)
 				}
 			}
 		}

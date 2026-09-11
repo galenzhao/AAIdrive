@@ -192,8 +192,12 @@ class MapTestingController(
 
 			viewModel.isSearchingNavigation.value = false
 
-			expandedResult.location?.let {
-				mapInteractionController.navigateTo(it)
+			expandedResult.location?.let { dest ->
+				mapInteractionController.navigateTo(
+					dest,
+					expandedResult.name.takeIf { it.isNotBlank() },
+					expandedResult.id.ifBlank { null },
+				)
 			}
 		}
 	}

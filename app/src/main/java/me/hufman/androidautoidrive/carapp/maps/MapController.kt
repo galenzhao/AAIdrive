@@ -27,6 +27,8 @@ const val EXTRA_ZOOM_AMOUNT = "me.hufman.androidautoidrive.maps.INTERACTION.ZOOM
 const val EXTRA_QUERY = "me.hufman.androidautoidrive.maps.INTERACTION.QUERY"
 const val EXTRA_ID = "me.hufman.androidautoidrive.maps.INTERACTION.ID"
 const val EXTRA_LATLONG = "me.hufman.androidautoidrive.maps.INTERACTION.LATLONG"
+const val EXTRA_DEST_NAME = "me.hufman.androidautoidrive.maps.INTERACTION.DEST_NAME"
+const val EXTRA_DEST_POI_ID = "me.hufman.androidautoidrive.maps.INTERACTION.DEST_POI_ID"
 const val EXTRA_ROUTE_ID = "me.hufman.androidautoidrive.maps.INTERACTION.ROUTE_ID"
 
 const val NAVIGATION_MAP_STARTZOOM_TIME = 4000
@@ -37,7 +39,7 @@ interface MapInteractionController {
 	fun pauseMap()
 	fun zoomIn(steps: Int = 1)
 	fun zoomOut(steps: Int = 1)
-	fun navigateTo(dest: LatLong)
+	fun navigateTo(dest: LatLong, name: String? = null, poiId: String? = null)
 	fun selectRoute(routeId: Int)
 	fun recalcNavigation()
 	fun stopNavigation()
@@ -69,8 +71,12 @@ class MapInteractionControllerIntent(val context: Context): MapInteractionContro
 		send(INTERACTION_ZOOM_OUT, Bundle().apply { putInt(EXTRA_ZOOM_AMOUNT, steps) })
 	}
 
-	override fun navigateTo(dest: LatLong) {
-		send(INTERACTION_NAV_START, Bundle().apply { putSerializable(EXTRA_LATLONG, dest) })
+	override fun navigateTo(dest: LatLong, name: String?, poiId: String?) {
+		send(INTERACTION_NAV_START, Bundle().apply {
+			putSerializable(EXTRA_LATLONG, dest)
+			if (!name.isNullOrBlank()) putString(EXTRA_DEST_NAME, name)
+			if (!poiId.isNullOrBlank()) putString(EXTRA_DEST_POI_ID, poiId)
+		})
 	}
 
 	override fun selectRoute(routeId: Int) {
@@ -107,8 +113,14 @@ class MapsInteractionControllerListener(val context: Context, val controller: Ma
 				INTERACTION_PAUSE_MAP -> controller.pauseMap()
 				INTERACTION_ZOOM_IN -> controller.zoomIn(intent.getIntExtra(EXTRA_ZOOM_AMOUNT, 1))
 				INTERACTION_ZOOM_OUT -> controller.zoomOut(intent.getIntExtra(EXTRA_ZOOM_AMOUNT, 1))
-				INTERACTION_NAV_START -> controller.navigateTo(intent.getSerializableExtraCompat(EXTRA_LATLONG) as? LatLong
-						?: return)
+				INTERACTION_NAV_START -> {
+					val dest = intent.getSerializableExtraCompat(EXTRA_LATLONG) as? LatLong ?: return
+					controller.navigateTo(
+						dest,
+						intent.getStringExtra(EXTRA_DEST_NAME),
+						intent.getStringExtra(EXTRA_DEST_POI_ID),
+					)
+				}
 				INTERACTION_NAV_SELECT_ROUTE -> controller.selectRoute(intent.getIntExtra(EXTRA_ROUTE_ID, -1).takeIf { it >= 0 }
 						?: return)
 				INTERACTION_NAV_RECALCULATE -> controller.recalcNavigation()

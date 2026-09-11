@@ -62,10 +62,10 @@ class AmapController(
         navController.zoomOut(steps)
     }
 
-    override fun navigateTo(dest: LatLong) {
-        Log.i(TAG, "Starting navigation to $dest")
+    override fun navigateTo(dest: LatLong, name: String?, poiId: String?) {
+        Log.i(TAG, "Starting navigation to $dest name=$name poiId=$poiId")
         mapAppMode.startInteraction()
-        navController.navigateTo(dest)
+        navController.navigateTo(dest, name, poiId)
     }
 
     override fun selectRoute(routeId: Int) {

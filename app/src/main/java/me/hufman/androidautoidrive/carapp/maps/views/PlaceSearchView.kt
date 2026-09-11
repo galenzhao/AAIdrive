@@ -10,6 +10,7 @@ import me.hufman.androidautoidrive.carapp.L
 import me.hufman.androidautoidrive.carapp.maps.MapInteractionController
 import me.hufman.androidautoidrive.maps.MapResult
 import me.hufman.androidautoidrive.maps.MapPlaceSearch
+import me.hufman.androidautoidrive.maps.resolveNavigable
 import kotlin.coroutines.CoroutineContext
 
 class PlaceSearchView(state: RHMIState, val mapPlaceSearch: MapPlaceSearch, val interaction: MapInteractionController): InputState<MapResult>(state), CoroutineScope {
@@ -64,13 +65,13 @@ class PlaceSearchView(state: RHMIState, val mapPlaceSearch: MapPlaceSearch, val 
 			inputComponent.getSuggestAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = fullImageView?.state?.id ?: 0
 		}
 		searchJob = launch {
-			val locationResult = if (item.location == null) {
-				mapPlaceSearch.resultInformationAsync(item.id).await()    // ask for LatLong, to navigate to
-			} else {
-				item
-			}
+			val locationResult = mapPlaceSearch.resolveNavigable(item)
 			if (locationResult?.location != null) {
-				interaction.navigateTo(locationResult.location)
+				interaction.navigateTo(
+					locationResult.location,
+					locationResult.name.takeIf { it.isNotBlank() },
+					locationResult.id.ifBlank { null },
+				)
 			} else if (useRoutes) {
 				searchResultsView?.let {
 					it.mapAppMode.completePendingRoutes(emptyList())

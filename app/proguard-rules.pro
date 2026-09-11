@@ -70,8 +70,24 @@
 -dontwarn com.google.auto.**
 -dontwarn com.mapbox.maps.plugin.**
 
+# AMap / 高德 (官方「其他配置注意事项」混淆；导航 V8.1+ + 3D 地图 + 定位 + 搜索)
+-keep class com.amap.api.maps.**{*;}
+-keep class com.amap.api.trace.**{*;}
+-keep class com.amap.api.location.**{*;}
+-keep class com.amap.api.fence.**{*;}
+-keep class com.amap.api.services.**{*;}
+-keep class com.amap.api.navi.**{*;}
+-keep class com.amap.apis.utils.**{*;}
+-keep class com.autonavi.**{*;}
+-keep class com.alibaba.idst.nui.**{*;}
 # AMap glyph renderer looks this up from native/Java every frame
 -keep class com.autonavi.base.ae.gmap.glyph.ReflectUtil { *; }
+# Optional Amap 11.x soft-deps (not shipped in the Maven fat jar)
+-dontwarn com.amap.ams.gnss.GnssSoftLocator
+-dontwarn net.jafama.FastMath
+-dontwarn com.alibaba.idst.**
+-dontwarn com.alibaba.mit.alitts.**
+-dontwarn com.nlspeech.**
 
 # And from Sentry
 -dontwarn javax.**

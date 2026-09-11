@@ -99,12 +99,12 @@ class AmapNaviController(
         onMain { projection?.zoomOut(steps) }
     }
 
-    override fun navigateTo(dest: LatLong) {
+    override fun navigateTo(dest: LatLong, name: String?, poiId: String?) {
         mapAppMode.startInteraction()
         mapAppMode.currentNavDestination = dest
         onMain {
             showMapOnMain()
-            projection?.navigateTo(dest)
+            projection?.navigateTo(dest, name, poiId)
         }
     }
 

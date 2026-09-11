@@ -158,7 +158,7 @@ class GMapsController(private val context: Context,
 		}
 	}
 
-	override fun navigateTo(dest: LatLong) {
+	override fun navigateTo(dest: LatLong, name: String?, poiId: String?) {
 		Log.i(TAG, "Beginning navigation to $dest")
 		mapAppMode.startInteraction(NAVIGATION_MAP_STARTZOOM_TIME + 4000)
 		// clear out previous nav

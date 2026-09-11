@@ -143,15 +143,19 @@ class MenuView(val state: RHMIState, val interaction: MapInteractionController, 
 			val targetId = if (resultsView != null && MapNaviBehavior.selectRouteBeforeStart) {
 				resultsView.startFavoriteDestination(stored)
 				resultsView.state.id
+			} else if (resultsView != null) {
+				resultsView.startFavoriteDestination(stored)
+				stateMap.id
 			} else {
 				val location = MapQuickDestination.parseLocation(stored)
 				if (location != null) {
-					interaction.navigateTo(location)
-				} else {
-					searchResultsView?.startFavoriteDestination(stored) ?: run {
-						stayOnMenu()
-						throw RHMIActionAbort()
+					val name = MapQuickDestination.displayName(stored).takeIf { label ->
+						label.isNotBlank() && MapQuickDestination.parseLocation(label) == null
 					}
+					interaction.navigateTo(location, name, null)
+				} else {
+					stayOnMenu()
+					throw RHMIActionAbort()
 				}
 				stateMap.id
 			}
